@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import clue.GraphQLOperation
 import clue.annotation.GraphQL
-import eu.timepit.refined.types.string.NonEmptyString
+// import eu.timepit.refined.types.string.NonEmptyString
 import explore.AppCtx
 import explore.components.graphql.LiveQueryRenderMod
 import explore.data.KeyedIndexedList
@@ -15,9 +15,9 @@ import explore.implicits._
 import explore.model.ObsSummary
 import explore.model.reusability._
 import explore.schemas.ObservationDB
-import io.circe.Decoder
-import io.circe.HCursor
-import io.circe.generic.semiauto._
+// import io.circe.Decoder
+// import io.circe.HCursor
+// import io.circe.generic.semiauto._
 import io.circe.refined._
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
@@ -30,29 +30,35 @@ import monocle.macros.Lenses
 
 object TargetObsQueries {
 
-  @Lenses
-  case class TargetIdName(id: Target.Id, name: NonEmptyString)
-  object TargetIdName {
-    implicit val decoder: Decoder[TargetIdName] = deriveDecoder
-  }
-
-  @Lenses
-  case class AsterismIdName(
-    id:      Asterism.Id,
-    name:    NonEmptyString,
-    targets: TargetList
-  )
-  object AsterismIdName {
-    implicit val decoder: Decoder[AsterismIdName] = new Decoder[AsterismIdName] {
-      final def apply(c: HCursor): Decoder.Result[AsterismIdName] =
-        for {
-          id      <- c.downField("id").as[Asterism.Id]
-          name    <- c.downField("name").as[NonEmptyString]
-          targets <- c.downField("targets").downField("nodes").as[List[TargetIdName]]
-        } yield AsterismIdName(id, name, KeyedIndexedList.fromList(targets, TargetIdName.id.get))
-    }
-  }
-
+  trait PointingIdName
+  type TargetIdName = TargetsObsQuery.Data.Targets.Nodes
+  val TargetIdNameId = TargetsObsQuery.Data.Targets.Nodes.target_id
+  type AsterismIdName = TargetsObsQuery.Data.Asterisms.Nodes
+  val AsterismIdNameId = TargetsObsQuery.Data.Asterisms.Nodes.asterism_id
+  type AsterismIdTargets = TargetsObsQuery.Data.Asterisms.Nodes.Targets
+  // @Lenses
+  // case class TargetIdName(id: Target.Id, name: NonEmptyString)
+  // object TargetIdName {
+  //   implicit val decoder: Decoder[TargetIdName] = deriveDecoder
+  // }
+  //
+  // @Lenses
+  // case class AsterismIdName(
+  //   id:      Asterism.Id,
+  //   name:    NonEmptyString,
+  //   targets: TargetList
+  // )
+  // object AsterismIdName {
+  //   implicit val decoder: Decoder[AsterismIdName] = new Decoder[AsterismIdName] {
+  //     final def apply(c: HCursor): Decoder.Result[AsterismIdName] =
+  //       for {
+  //         id      <- c.downField("id").as[Asterism.Id]
+  //         name    <- c.downField("name").as[NonEmptyString]
+  //         targets <- c.downField("targets").downField("nodes").as[List[TargetIdName]]
+  //       } yield AsterismIdName(id, name, KeyedIndexedList.fromList(targets, TargetIdNameId.get))
+  //   }
+  // }
+  //
   type TargetList   = KeyedIndexedList[Target.Id, TargetIdName]
   type AsterismList = KeyedIndexedList[Asterism.Id, AsterismIdName]
   type ObsList      = KeyedIndexedList[Observation.Id, ObsSummary]
@@ -70,15 +76,15 @@ object TargetObsQueries {
       query {
         targets(programId: "p-2", first: 2147483647) {
           nodes {
-            id
-            name
+            target_id: id
+            target_name: name
           }
         }
 
         asterisms(programId: "p-2", first: 2147483647) {
           nodes {
-            id
-            name
+            asterism_id: id
+            asterism_name: name
             targets(first: 2147483647) {
               nodes {
                 id
@@ -116,11 +122,11 @@ object TargetObsQueries {
 
     object Data {
       object Targets {
-        type Nodes = TargetIdName
+        trait Nodes extends PointingIdName
       }
 
       object Asterisms {
-        type Nodes = AsterismIdName
+        trait Nodes extends PointingIdName
       }
 
       object Observations {
@@ -142,15 +148,15 @@ object TargetObsQueries {
         query {
           targets(programId: "p-2", first: 2147483647) {
             nodes {
-              id
-              name
+              target_id: id
+              target_name: name
             }
           }
   
           asterisms(programId: "p-2", first: 2147483647) {
             nodes {
-              id
-              name
+              asterism_id: id
+              asterism_name: name
               targets(first: 2147483647) {
                 nodes {
                   id
@@ -187,7 +193,18 @@ object TargetObsQueries {
       """
     object Data {
       object Targets {
-        type Nodes = TargetIdName
+        case class Nodes(val target_id: TargetId, val target_name: NonEmptyString) extends PointingIdName
+        object Nodes {
+          implicit val target_id: monocle.Lens[Data.Targets.Nodes, TargetId] = monocle.macros.GenLens[Data.Targets.Nodes](_.target_id)
+          implicit val target_name: monocle.Lens[Data.Targets.Nodes, NonEmptyString] = monocle.macros.GenLens[Data.Targets.Nodes](_.target_name)
+          implicit val eqNodes: cats.Eq[Data.Targets.Nodes] = cats.Eq.fromUniversalEquals
+          implicit val showNodes: cats.Show[Data.Targets.Nodes] = cats.Show.fromToString
+          implicit val reuseNodes: japgolly.scalajs.react.Reusability[Data.Targets.Nodes] = {
+            import japgolly.scalajs.react.Reusability
+            japgolly.scalajs.react.Reusability.derive
+          }
+          implicit val jsonDecoderNodes: io.circe.Decoder[Data.Targets.Nodes] = io.circe.generic.semiauto.deriveDecoder[Data.Targets.Nodes]
+        }
         implicit val nodes: monocle.Lens[Data.Targets, List[Data.Targets.Nodes]] = monocle.macros.GenLens[Data.Targets](_.nodes)
         implicit val eqTargets: cats.Eq[Data.Targets] = cats.Eq.fromUniversalEquals
         implicit val showTargets: cats.Show[Data.Targets] = cats.Show.fromToString
@@ -198,7 +215,42 @@ object TargetObsQueries {
         implicit val jsonDecoderTargets: io.circe.Decoder[Data.Targets] = io.circe.generic.semiauto.deriveDecoder[Data.Targets]
       }
       object Asterisms {
-        type Nodes = AsterismIdName
+        case class Nodes(val asterism_id: AsterismId, val asterism_name: Option[NonEmptyString] = None, val targets: Data.Asterisms.Nodes.Targets) extends PointingIdName
+        object Nodes {
+          case class Targets(val nodes: List[Data.Asterisms.Nodes.Targets.Nodes])
+          object Targets {
+            case class Nodes(val id: TargetId, val name: NonEmptyString)
+            object Nodes {
+              implicit val id: monocle.Lens[Data.Asterisms.Nodes.Targets.Nodes, TargetId] = monocle.macros.GenLens[Data.Asterisms.Nodes.Targets.Nodes](_.id)
+              implicit val name: monocle.Lens[Data.Asterisms.Nodes.Targets.Nodes, NonEmptyString] = monocle.macros.GenLens[Data.Asterisms.Nodes.Targets.Nodes](_.name)
+              implicit val eqNodes: cats.Eq[Data.Asterisms.Nodes.Targets.Nodes] = cats.Eq.fromUniversalEquals
+              implicit val showNodes: cats.Show[Data.Asterisms.Nodes.Targets.Nodes] = cats.Show.fromToString
+              implicit val reuseNodes: japgolly.scalajs.react.Reusability[Data.Asterisms.Nodes.Targets.Nodes] = {
+                import japgolly.scalajs.react.Reusability
+                japgolly.scalajs.react.Reusability.derive
+              }
+              implicit val jsonDecoderNodes: io.circe.Decoder[Data.Asterisms.Nodes.Targets.Nodes] = io.circe.generic.semiauto.deriveDecoder[Data.Asterisms.Nodes.Targets.Nodes]
+            }
+            implicit val nodes: monocle.Lens[Data.Asterisms.Nodes.Targets, List[Data.Asterisms.Nodes.Targets.Nodes]] = monocle.macros.GenLens[Data.Asterisms.Nodes.Targets](_.nodes)
+            implicit val eqTargets: cats.Eq[Data.Asterisms.Nodes.Targets] = cats.Eq.fromUniversalEquals
+            implicit val showTargets: cats.Show[Data.Asterisms.Nodes.Targets] = cats.Show.fromToString
+            implicit val reuseTargets: japgolly.scalajs.react.Reusability[Data.Asterisms.Nodes.Targets] = {
+              import japgolly.scalajs.react.Reusability
+              japgolly.scalajs.react.Reusability.derive
+            }
+            implicit val jsonDecoderTargets: io.circe.Decoder[Data.Asterisms.Nodes.Targets] = io.circe.generic.semiauto.deriveDecoder[Data.Asterisms.Nodes.Targets]
+          }
+          implicit val asterism_id: monocle.Lens[Data.Asterisms.Nodes, AsterismId] = monocle.macros.GenLens[Data.Asterisms.Nodes](_.asterism_id)
+          implicit val asterism_name: monocle.Lens[Data.Asterisms.Nodes, Option[NonEmptyString]] = monocle.macros.GenLens[Data.Asterisms.Nodes](_.asterism_name)
+          implicit val targets: monocle.Lens[Data.Asterisms.Nodes, Data.Asterisms.Nodes.Targets] = monocle.macros.GenLens[Data.Asterisms.Nodes](_.targets)
+          implicit val eqNodes: cats.Eq[Data.Asterisms.Nodes] = cats.Eq.fromUniversalEquals
+          implicit val showNodes: cats.Show[Data.Asterisms.Nodes] = cats.Show.fromToString
+          implicit val reuseNodes: japgolly.scalajs.react.Reusability[Data.Asterisms.Nodes] = {
+            import japgolly.scalajs.react.Reusability
+            japgolly.scalajs.react.Reusability.derive
+          }
+          implicit val jsonDecoderNodes: io.circe.Decoder[Data.Asterisms.Nodes] = io.circe.generic.semiauto.deriveDecoder[Data.Asterisms.Nodes]
+        }
         implicit val nodes: monocle.Lens[Data.Asterisms, List[Data.Asterisms.Nodes]] = monocle.macros.GenLens[Data.Asterisms](_.nodes)
         implicit val eqAsterisms: cats.Eq[Data.Asterisms] = cats.Eq.fromUniversalEquals
         implicit val showAsterisms: cats.Show[Data.Asterisms] = cats.Show.fromToString
@@ -251,8 +303,8 @@ object TargetObsQueries {
     : Getter[TargetsObsQuery.Data, TargetsAndAsterismsWithObs] =
     data => {
       TargetsAndAsterismsWithObs(
-        KeyedIndexedList.fromList(data.targets.nodes, TargetIdName.id.get),
-        KeyedIndexedList.fromList(data.asterisms.nodes, AsterismIdName.id.get),
+        KeyedIndexedList.fromList(data.targets.nodes, TargetIdNameId.get),
+        KeyedIndexedList.fromList(data.asterisms.nodes, AsterismIdNameId.get),
         KeyedIndexedList.fromList(data.observations.nodes, ObsSummary.id.get)
       )
     }
@@ -653,7 +705,7 @@ object TargetObsQueries {
   @GraphQL
   trait AddAsterismGQL extends GraphQLOperation[ObservationDB] {
     val document = """
-      mutation($asterismId: AsterismId!, $name: NonEmptyString!) {
+      mutation($asterismId: AsterismId!, $name: NonEmptyString) {
         createAsterism(input:{
           asterismId: $asterismId,
           name: $name,
@@ -675,7 +727,7 @@ object TargetObsQueries {
     import ObservationDB.Types._
     ignoreUnusedImportTypes()
     val document = """
-        mutation($asterismId: AsterismId!, $name: NonEmptyString!) {
+        mutation($asterismId: AsterismId!, $name: NonEmptyString) {
           createAsterism(input:{
             asterismId: $asterismId,
             name: $name,
@@ -685,10 +737,10 @@ object TargetObsQueries {
           }
         }
       """
-    case class Variables(val asterismId: AsterismId, val name: NonEmptyString)
+    case class Variables(val asterismId: AsterismId, val name: clue.data.Input[NonEmptyString] = clue.data.Ignore)
     object Variables {
       implicit val asterismId: monocle.Lens[Variables, AsterismId] = monocle.macros.GenLens[Variables](_.asterismId)
-      implicit val name: monocle.Lens[Variables, NonEmptyString] = monocle.macros.GenLens[Variables](_.name)
+      implicit val name: monocle.Lens[Variables, clue.data.Input[NonEmptyString]] = monocle.macros.GenLens[Variables](_.name)
       implicit val eqVariables: cats.Eq[Variables] = cats.Eq.fromUniversalEquals
       implicit val showVariables: cats.Show[Variables] = cats.Show.fromToString
       implicit val jsonEncoderVariables: io.circe.Encoder[Variables] = io.circe.generic.semiauto.deriveEncoder[Variables].mapJson(_.foldWith(clue.data.Input.dropIgnoreFolder))
@@ -717,7 +769,7 @@ object TargetObsQueries {
     }
     val varEncoder: io.circe.Encoder[Variables] = Variables.jsonEncoderVariables
     val dataDecoder: io.circe.Decoder[Data] = Data.jsonDecoderData
-    def execute[F[_]](asterismId: AsterismId, name: NonEmptyString)(implicit client: clue.TransactionalClient[F, ObservationDB]) = client.request(this)(Variables(asterismId, name))
+    def execute[F[_]](asterismId: AsterismId, name: clue.data.Input[NonEmptyString] = clue.data.Ignore)(implicit client: clue.TransactionalClient[F, ObservationDB]) = client.request(this)(Variables(asterismId, name))
   }
   // format: on
   /* END: Generated by clue. Will be replaced when regenerating. */
@@ -1180,9 +1232,9 @@ object TargetObsQueries {
   /* END: Generated by clue. Will be replaced when regenerating. */
 
   implicit val targetIdNameReusability: Reusability[TargetIdName]                 =
-    Reusability.by(x => (x.id, x.name))
+    Reusability.by(x => (x.target_id, x.target_name))
   implicit val asterismIdNameReusability: Reusability[AsterismIdName]             =
-    Reusability.by(x => (x.id, x.name))
+    Reusability.by(x => (x.asterism_id, x.asterism_name))
   implicit val targetsWithObsReusability: Reusability[TargetsAndAsterismsWithObs] =
     Reusability.derive
 

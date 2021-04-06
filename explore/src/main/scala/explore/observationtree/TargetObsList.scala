@@ -82,8 +82,8 @@ object TargetObsList {
   case class State(dragging: Boolean = false)
 
   val obsListMod      = new KIListMod[IO, ObsSummary, Observation.Id](ObsSummary.id)
-  val targetListMod   = new KIListMod[IO, TargetIdName, Target.Id](TargetIdName.id)
-  val asterismListMod = new KIListMod[IO, AsterismIdName, Asterism.Id](AsterismIdName.id)
+  val targetListMod   = new KIListMod[IO, TargetIdName, Target.Id](TargetIdNameId)
+  val asterismListMod = new KIListMod[IO, AsterismIdName, Asterism.Id](AsterismIdNameId)
 
   class Backend($ : BackendScope[Props, State]) {
     private val UnassignedObsId = "unassignedObs"
@@ -106,9 +106,9 @@ object TargetObsList {
       c:                     TransactionalClient[IO, ObservationDB]
     ): IO[Unit] =
       AddTarget
-        .execute(target.id, target.name)
+        .execute(target.target_id, target.target_name)
         .handleErrorWith { _ =>
-          UndeleteTarget.execute(target.id)
+          UndeleteTarget.execute(target.target_id)
         }
         .void
 
@@ -121,9 +121,9 @@ object TargetObsList {
       c:                         TransactionalClient[IO, ObservationDB]
     ): IO[Unit] =
       AddAsterism
-        .execute(asterism.id, asterism.name)
+        .execute(asterism.asterism_id, asterism.asterism_name.assign)
         .handleErrorWith { _ =>
-          UndeleteAsterism.execute(asterism.id)
+          UndeleteAsterism.execute(asterism.asterism_id)
         }
         .void
 
@@ -258,7 +258,7 @@ object TargetObsList {
           .mod(targetWithIndexSetter.set(targetWithIndex)) >>
           // 2) Send mutation & adjust focus
           targetWithIndex.fold(
-            focused.set(nextToFocus.map(f => Focused.FocusedTarget(f.id))) >> removeTarget(targetId)
+            focused.set(nextToFocus.map(f => Focused.FocusedTarget(f.target_id))) >> removeTarget(targetId)
           ) { case (target, _) =>
             insertTarget(target) >> focused.set(FocusedTarget(targetId).some)
           }
@@ -293,20 +293,20 @@ object TargetObsList {
     ): IO[Unit] =
       ($.propsIn[IO], IO(PosLong.unsafeFrom(Random.nextInt(0xfff).abs.toLong + 1))).parTupled
         .flatMap { case (props, posLong) =>
-          val newTarget = TargetIdName(Target.Id(posLong), name)
-          val mod       = targetMod(setter, props.aimsWithObs, props.focused, newTarget.id, none)
+          val newTarget = new TargetIdName(Target.Id(posLong), name)
+          val mod       = targetMod(setter, props.aimsWithObs, props.focused, newTarget.target_id, none)
           (
             mod(targetListMod.upsert(newTarget, props.aimsWithObs.get.targets.length)),
-            props.searching.mod(_ + newTarget.id) >>
+            props.searching.mod(_ + newTarget.target_id) >>
               SimbadSearch
                 .search(name)
                 .attempt
-                .guarantee(props.searching.mod(_ - newTarget.id))
+                .guarantee(props.searching.mod(_ - newTarget.target_id))
           ).parTupled.flatMap {
             case (_, Right(Some(Target(_, Right(st), m)))) =>
               val update = TargetQueries.UpdateSiderealTracking(st) >>>
                 TargetQueries.updateMagnitudes(m.values.toList)
-              TargetMutation.execute(update(EditSiderealInput(newTarget.id))).void
+              TargetMutation.execute(update(EditSiderealInput(newTarget.target_id))).void
             case _                                         =>
               IO.unit
           }
@@ -331,15 +331,16 @@ object TargetObsList {
     ): IO[Unit] = {
       // Temporary measure until we have id pools.
       val newAsterism = IO(Random.nextInt()).map(int =>
-        AsterismIdName(Asterism.Id(PosLong.unsafeFrom(int.abs.toLong + 1)),
-                       name,
-                       KeyedIndexedList.empty
+        new AsterismIdName(Asterism.Id(PosLong.unsafeFrom(int.abs.toLong + 1)),
+                       name.some,
+                       Nil
+                       // KeyedIndexedList.empty//[AsterismIdTargets]
         )
       )
 
       $.propsIn[IO] >>= { props =>
         newAsterism >>= { asterism =>
-          val mod = asterismMod(setter, props.aimsWithObs, props.focused, asterism.id, none)
+          val mod = asterismMod(setter, props.aimsWithObs, props.focused, asterism.asterism_id, none)
           mod(asterismListMod.upsert(asterism, props.aimsWithObs.get.asterisms.length))
         }
       }
@@ -375,7 +376,7 @@ object TargetObsList {
         .mod(asterismWithIndexSetter.set(asterismWithIndex)) >>
         // 2) Send mutation & adjust focus
         asterismWithIndex.fold(
-          focused.set(nextToFoucs.map(f => FocusedAsterism(f.id))) >> removeAsterism(asterismId)
+          focused.set(nextToFoucs.map(f => FocusedAsterism(f.asterism_id))) >> removeAsterism(asterismId)
         ) { case (asterism, _) =>
           insertAsterism(asterism) >> focused.set(FocusedAsterism(asterismId).some)
         }
@@ -429,7 +430,7 @@ object TargetObsList {
           targetWithIndex.fold(
             unshareTargetWithAsterism(targetId, asterismId)
           ) { case (target, _) =>
-            shareTargetWithAsterism(target.id, asterismId)
+            shareTargetWithAsterism(target.target_id, asterismId)
           }
 
     private def asterismTargetMod(
@@ -462,7 +463,7 @@ object TargetObsList {
     )(implicit
       c:           TransactionalClient[IO, ObservationDB]
     ): IO[Unit] = {
-      val mod = asterismTargetMod(setter, aimsWithObs, target.id, asterismId)
+      val mod = asterismTargetMod(setter, aimsWithObs, target.target_id, asterismId)
       mod(
         targetListMod.upsert(
           target,
@@ -501,7 +502,7 @@ object TargetObsList {
       val targetsWithIdx = targets.toList.zipWithIndex
 
       val asterisms    = props.aimsWithObs.get.asterisms.toList
-      val asterismIds  = asterisms.map(_.id)
+      val asterismIds  = asterisms.map(_.asterism_id)
       val asterismIdxs = asterisms.zipWithIndex
 
       val unassignedObs = obsByAim.get(none).orEmpty
@@ -519,7 +520,7 @@ object TargetObsList {
               case Right(targetId)   =>
                 targets
                   .getElement(targetId)
-                  .map(target => Card(raised = true)(CardContent(target.name.value)).vdomElement)
+                  .map(target => Card(raised = true)(CardContent(target.target_name.value)).vdomElement)
               case Left(Some(obsId)) => observations.getElement(obsId).map(props.renderObsBadge)
               case _                 => none
             }).getOrElse(<.span("ERROR"))
@@ -572,7 +573,7 @@ object TargetObsList {
                   <.div(ExploreStyles.ObsTree)(
                     <.div(ExploreStyles.ObsScrollTree)(
                       targetsWithIdx.toTagMod { case (target, targetIdx) =>
-                        val targetId      = target.id
+                        val targetId      = target.target_id
                         val nextToSelect  = targetsWithIdx.find(_._2 === targetIdx + 1).map(_._1)
                         val prevToSelect  = targetsWithIdx.find(_._2 === targetIdx - 1).map(_._1)
                         val focusOnDelete = nextToSelect.orElse(prevToSelect)
@@ -614,7 +615,7 @@ object TargetObsList {
                               <.span(ExploreStyles.ObsTreeGroupHeader)(
                                 <.span(ExploreStyles.ObsGroupTitle)(
                                   opIcon,
-                                  target.name.value
+                                  target.target_name.value
                                 ),
                                 Button(
                                   size = Small,
@@ -700,7 +701,7 @@ object TargetObsList {
                   <.div(ExploreStyles.ObsTree)(
                     <.div(ExploreStyles.ObsScrollTree)(
                       asterisms.toTagMod { asterism =>
-                        val asterismId    = asterism.id
+                        val asterismId    = asterism.asterism_id
                         val currIdx       = asterismIds.indexOf(asterismId)
                         val nextToSelect  = asterismIdxs.find(_._2 === currIdx + 1).map(_._1)
                         val prevToSelect  = asterismIdxs.find(_._2 === currIdx - 1).map(_._1)
@@ -898,13 +899,13 @@ object TargetObsList {
         // Remove objects from expanded set which are no longer present.
         val removeTargets =
           (expandedTargetIds.get -- aimsWithObs.targets.toList
-            .map(_.id)).toNes
+            .map(_.target_id)).toNes
             .map(removedTargetIds => expandedTargetIds.mod(_ -- removedTargetIds.toSortedSet))
             .orEmpty
 
         val removeAsterisms =
           (expandedAsterismIds.get -- aimsWithObs.asterisms.toList
-            .map(_.id)).toNes
+            .map(_.asterism_id)).toNes
             .map(removedAsterismIds => expandedAsterismIds.mod(_ -- removedAsterismIds.toSortedSet))
             .orEmpty
 
