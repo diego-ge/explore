@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react-refresh": "^1.1.0",
+    "bundlewatch": "^0.3.2",
     "chokidar": "3.5.1",
     "less": "3.9.0",
     "less-watch-compiler": "1.14.6",
@@ -55,5 +56,16 @@
     "fix-light": "sed '/^[\\.\\}\\@]/d;/^[[:blank:]]*\\..*/d;/\\/\\/.*/d' common/src/main/webapp/less/variables-light.less > vars.css;npx stylelint --fix common/src/main/webapp/less; rm vars.css",
     "build": "vite build",
     "serve": "vite preview"
+  },
+  "bundlewatch": {
+    "trackBranches": [
+      "master"
+    ],
+    "files": [
+      {
+        "path": "./static/assets/*.js",
+        "maxSize": "2 MB"
+      }
+    ]
   }
 }
