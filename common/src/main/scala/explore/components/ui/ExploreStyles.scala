@@ -51,6 +51,7 @@ object ExploreStyles {
   // styling and layout
   val ProposalTile: Css = Css("proposal-tile")
 
+  val MainApp: Css          = Css("main-app")
   val MainGrid: Css         = Css("main-grid")
   val MainHeader: Css       = Css("main-header")
   val MainBody: Css         = Css("main-body")

@@ -36,6 +36,7 @@ object ExploreLayout {
             HelpCtx.usingView { helpCtx =>
               val helpView = helpCtx.zoom(HelpContext.displayedHelp)
               SidebarPushable(
+                ExploreStyles.MainApp,
                 Sidebar(
                   width = SidebarWidth.Wide,
                   direction = SidebarDirection.Right,

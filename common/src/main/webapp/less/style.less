@@ -155,12 +155,16 @@ tfoot {
 //----------
 // Main grid
 //----------
+.main-app {
+  height: 100vh;
+  min-height: 100vh;
+}
+
 .main-grid {
   @topBottom: 42px;
 
   display: grid;
-  height: 100vh;
-  min-height: 100vh;
+  height: 100%;
   width: 100%;
   overflow: hidden;
   grid-template-columns: 1fr;
@@ -181,7 +185,7 @@ tfoot {
 
 /* Avoid Chrome to see Safari hack */
 @supports (-webkit-touch-callout: none) {
-  .main-grid {
+  .main-app {
     /* The hack for Safari */
     min-height: -webkit-fill-available;
   }
@@ -1356,4 +1360,8 @@ html {
     text-shadow: none;
     color: black;
   }
+}
+
+.ui.wide.right.sidebar {
+  max-width: 100%;
 }
