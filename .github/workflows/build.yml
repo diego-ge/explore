@@ -19,3 +19,8 @@ jobs:
           sbt stage
           npm install
           npm run build
+      - uses: chrysanthos/simple-asset-size-reporter@1.0.0
+        with:
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          files: '["static/*.js", "static/*.css"]'
+          with-same: 'true'
