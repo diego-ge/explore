@@ -17,18 +17,18 @@ import reactST.reactTable.util
 import scalajs.js
 import scalajs.js.|
 
-case class SUITableProps[D, TableOptsD <: UseTableOptions[D]](
-  table:       Table = Table(),
-  header:      Boolean | TableHeader = false,
-  headerRow:   TableRow = TableRow(),
-  headerCell:  TableHeaderCell = TableHeaderCell(),
-  body:        TableBody = TableBody(),
-  row:         TableRow = TableRow(),
-  cell:        TableCell = TableCell(),
-  footer:      Boolean | TableFooter | VdomNode = false,
-  footerRow:   TableRow = TableRow(),
-  footerCell:  TableHeaderCell = TableHeaderCell()
-)(val options: TableOptsD)
+case class SUITableProps[D, TableInstanceD <: TableInstance[D]](
+  table:        Table = Table(),
+  header:       Boolean | TableHeader = false,
+  headerRow:    TableRow = TableRow(),
+  headerCell:   TableHeaderCell = TableHeaderCell(),
+  body:         TableBody = TableBody(),
+  row:          TableRow = TableRow(),
+  cell:         TableCell = TableCell(),
+  footer:       Boolean | TableFooter | VdomNode = false,
+  footerRow:    TableRow = TableRow(),
+  footerCell:   TableHeaderCell = TableHeaderCell()
+)(val instance: TableInstanceD)
 
 class SUITable[
   D,
@@ -42,8 +42,8 @@ class SUITable[
 ) {
   private implicit def props2Attrs(obj: js.Object): TagMod = util.props2Attrs(obj)
 
-  val component = ScalaFnComponent[SUITableProps[D, TableOptsD]] { case props =>
-    val tableInstance = tableMaker.use(props.options)
+  val component = ScalaFnComponent[SUITableProps[D, TableInstanceD]] { case props =>
+    val tableInstance = props.instance
 
     val headerTag: Option[TableHeader] = (props.header: Any) match {
       case true               => TableHeader().some
@@ -104,14 +104,17 @@ class SUITable[
       .vdomElement
   }
 
-  private type Component =
-    JsFn.UnmountedWithRoot[SUITableProps[D, TableOptsD], Unit, Box[SUITableProps[D, TableOptsD]]]
+  private type Props = SUITableProps[D, TableInstanceD]
 
-  protected case class Applied(builder: TableOptsD => Component) {
-    def apply(options: TableOptsD): Component = builder(options)
+  private type Component = JsFn.UnmountedWithRoot[Props, Unit, Box[Props]]
+
+  protected case class Applied(builder: TableInstanceD => Component) {
+    def apply(instance: TableInstanceD): Component = builder(instance)
+
+    def apply(options: TableOptsD): Component = builder(tableMaker.use(options))
 
     def apply(columns: js.Array[_ <: UseTableColumnOptions[D]], data: js.Array[D]): Component =
-      builder(tableMaker.Options(columns, data))
+      apply(tableMaker.Options(columns, data))
   }
 
   def apply(
@@ -125,7 +128,7 @@ class SUITable[
     footer:     Boolean | TableFooter | VdomNode = false,
     footerRow:  TableRow = TableRow(),
     footerCell: TableHeaderCell = TableHeaderCell()
-  ): Applied = Applied((options: TableOptsD) =>
+  ): Applied = Applied((instance: TableInstanceD) =>
     component(
       SUITableProps(table,
                     header,
@@ -137,7 +140,7 @@ class SUITable[
                     footer,
                     footerRow,
                     footerCell
-      )(options)
+      )(instance)
     )
   )
 }
