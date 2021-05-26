@@ -5,6 +5,8 @@ package reactST.reactTable
 
 import cats.syntax.all._
 import japgolly.scalajs.react._
+import japgolly.scalajs.react.component.JsFn
+import japgolly.scalajs.react.internal.Box
 import japgolly.scalajs.react.vdom.html_<^._
 import react.semanticui.collections.table._
 import reactST.reactTable._
@@ -102,6 +104,16 @@ class SUITable[
       .vdomElement
   }
 
+  private type Component =
+    JsFn.UnmountedWithRoot[SUITableProps[D, TableOptsD], Unit, Box[SUITableProps[D, TableOptsD]]]
+
+  protected case class Applied(builder: TableOptsD => Component) {
+    def apply(options: TableOptsD): Component = builder(options)
+
+    def apply(columns: js.Array[_ <: UseTableColumnOptions[D]], data: js.Array[D]): Component =
+      builder(tableMaker.Options(columns, data))
+  }
+
   def apply(
     table:      Table = Table(),
     header:     Boolean | TableHeader = false,
@@ -113,17 +125,19 @@ class SUITable[
     footer:     Boolean | TableFooter | VdomNode = false,
     footerRow:  TableRow = TableRow(),
     footerCell: TableHeaderCell = TableHeaderCell()
-  )(options:    TableOptsD) = component(
-    SUITableProps(table,
-                  header,
-                  headerRow,
-                  headerCell,
-                  body,
-                  row,
-                  cell,
-                  footer,
-                  footerRow,
-                  footerCell
-    )(options)
+  ): Applied = Applied((options: TableOptsD) =>
+    component(
+      SUITableProps(table,
+                    header,
+                    headerRow,
+                    headerCell,
+                    body,
+                    row,
+                    cell,
+                    footer,
+                    footerRow,
+                    footerCell
+      )(options)
+    )
   )
 }
