@@ -40,7 +40,7 @@ final case class TargetSummaryTable(
 object TargetSummaryTable {
   type Props = TargetSummaryTable
 
-  private val TargetTable = TableMaker[(TargetResult, List[ObsResult])]
+  private val TargetTable = TableMaker[(TargetResult, List[ObsResult])].withSort
 
   private val TargetTableComponent = new SUITable(TargetTable)
 
@@ -137,11 +137,21 @@ object TargetSummaryTable {
       )
       .asInstanceOf[js.Array[TargetTable.ColumnOptionsType]]
 
-    val tableInstance = TargetTable.use(columns,
-                                        props.pointingsWithObs.targets.toList
-                                          .map(t => (t, props.pointingsWithObs.observations.toList))
-                                          .toJSArray
-    )
+    // All this is a hack while we don't have proper hooks.
+    val rawData = props.pointingsWithObs.targets.toList
+      .map(t => (t, props.pointingsWithObs.observations.toList))
+      .toJSArray
+
+    val reuseBy = (props.pointingsWithObs.targets.toList.map(
+      _.toString
+    ) ++ props.pointingsWithObs.observations.toList.map(_.toString)).toJSArray
+
+    val data = React.raw
+      .asInstanceOf[js.Dynamic]
+      .useMemo(() => rawData, reuseBy)
+      .asInstanceOf[js.Array[(TargetResult, List[ObsResult])]]
+
+    val tableInstance = TargetTable.use(columns, data)
 
     <.div(
       props.renderInTitle(
