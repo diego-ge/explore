@@ -29,7 +29,6 @@ import reactST.reactTable._
 import react.common._
 import explore.model.reusability._
 
-import scalajs.js
 import scalajs.js.JSConverters._
 
 final case class TargetSummaryTable(
@@ -43,14 +42,24 @@ final case class TargetSummaryTable(
 object TargetSummaryTable {
   type Props = TargetSummaryTable
 
-  private val TargetTable = TableMaker[TargetResult].withSort
+  protected val TargetTable = TableMaker[TargetResult].withSort
 
-  private val TargetTableComponent = new SUITable(TargetTable)
+  protected val TargetTableComponent = new SUITable(TargetTable)
 
   implicit protected val propsReuse: Reusability[Props] = Reusability.derive
 
   // TODO Generalize and move this logic to react-common (ReactProps receiving a FnComponent as parameter)
   // implicit def render(props: TargetSummaryTable): VdomElement = component(props).vdomElement
+
+  private val columnNames = Map("icon" -> " ",
+                                "name"         -> "Name",
+                                "ra"           -> "RA",
+                                "dec"          -> "Dec",
+                                "priority"     -> "Priority",
+                                "vmag"         -> "Vmag",
+                                "count"        -> "Count",
+                                "observations" -> "Observations"
+  )
 
   protected class Backend {
 
@@ -63,101 +72,110 @@ object TargetSummaryTable {
           case _                               => false
         })
 
-      val columnNames = Map("icon" -> " ",
-                            "name"         -> "Name",
-                            "ra"           -> "RA",
-                            "dec"          -> "Dec",
-                            "priority"     -> "Priority",
-                            "vmag"         -> "Vmag",
-                            "count"        -> "Count",
-                            "observations" -> "Observations"
-      )
-
       def column[V](id: String, accessor: TargetResult => V) =
         TargetTable.Column(id, accessor).setHeader(columnNames(id))
 
       // def columnWithObs[V](id: String, accessor: (TargetResult, List[ObsResult]) => V) =
       //   TargetTable.Column(id, { case (t, obs) => accessor(t, obs) }).setHeader(columnNames(id))
 
-      val columns = React.raw
-        .asInstanceOf[js.Dynamic]
-        .useMemo(
-          () =>
-            List(
-              column("icon", _ => ""),
-              column(
-                "name",
-                target =>
-                  <.a(^.onClick ==> (_ =>
-                        props.focused.set(Focused.FocusedTarget(target.id).some).runAsyncCB
+      val columns =
+        List(
+          column("icon", _ => ""),
+          column(
+            "name",
+            target =>
+              <.a(^.onClick ==> (_ =>
+                    props.focused.set(Focused.FocusedTarget(target.id).some).runAsyncCB
+                  ),
+                  target.name.value
+              ).rawElement
+          ),
+          column(
+            "ra",
+            (TargetObsQueries.baseCoordinatesRa.get _)
+              .andThen(TruncatedRA.rightAscension.get)
+              .andThen(ValidFormatInput.truncatedRA.reverseGet)
+          ),
+          column(
+            "dec",
+            (TargetObsQueries.baseCoordinatesDec.get _)
+              .andThen(TruncatedDec.declination.get)
+              .andThen(ValidFormatInput.truncatedDec.reverseGet)
+          ),
+          column("priority", _ => ""),
+          column(
+            "vmag",
+            _.magnitudes.collectFirst {
+              case Magnitude(value, band, _, _) if band === MagnitudeBand.V =>
+                MagnitudeValue.fromString.reverseGet(value)
+            }.orEmpty
+          ),
+          column(
+            "count",
+            target => targetObservations(target.id).length
+          ),
+          column(
+            "observations",
+            target =>
+              <.span(
+                targetObservations(target.id)
+                  .map(obs =>
+                    <.a(
+                      ^.onClick ==> (_ =>
+                        (props.focused
+                          .set(Focused.FocusedObs(obs.id).some) >> props.expandedIds
+                          .mod(ExpandedIds.targetIds.modify(_ + target.id))).runAsyncCB
                       ),
-                      target.name.value
-                  ).rawElement
-              ),
-              column(
-                "ra",
-                (TargetObsQueries.baseCoordinatesRa.get _)
-                  .andThen(TruncatedRA.rightAscension.get)
-                  .andThen(ValidFormatInput.truncatedRA.reverseGet)
-              ),
-              column(
-                "dec",
-                (TargetObsQueries.baseCoordinatesDec.get _)
-                  .andThen(TruncatedDec.declination.get)
-                  .andThen(ValidFormatInput.truncatedDec.reverseGet)
-              ),
-              column("priority", _ => ""),
-              column(
-                "vmag",
-                _.magnitudes.collectFirst {
-                  case Magnitude(value, band, _, _) if band === MagnitudeBand.V =>
-                    MagnitudeValue.fromString.reverseGet(value)
-                }.orEmpty
-              ),
-              column(
-                "count",
-                target => targetObservations(target.id).length
-              ),
-              column(
-                "observations",
-                target =>
-                  <.span(
-                    targetObservations(target.id)
-                      .map(obs =>
-                        <.a(
-                          ^.onClick ==> (_ =>
-                            (props.focused
-                              .set(Focused.FocusedObs(obs.id).some) >> props.expandedIds
-                              .mod(ExpandedIds.targetIds.modify(_ + target.id))).runAsyncCB
-                          ),
-                          obs.id.toString()
-                        )
-                      )
-                      .mkReactFragment(", ")
-                  ).rawElement
-              )
-            ).toJSArray,
-          js.Array()
-        )
-        .asInstanceOf[js.Array[TargetTable.ColumnOptionsType]]
+                      obs.id.toString()
+                    )
+                  )
+                  .mkReactFragment(", ")
+              ).rawElement
+          )
+        ).toJSArray
 
-      // All this is a hack while we don't have proper hooks.
+      // // All this is a hack while we don't have proper hooks.
       val rawData = props.pointingsWithObs.targets.toList.toJSArray
 
-      val reuseBy = (
-        props.pointingsWithObs.targets.toList.map(_.toString) ++
-          props.pointingsWithObs.observations.toList.map(_.toString)
-      ).toJSArray
+      // val reuseBy = (
+      //   props.pointingsWithObs.targets.toList.map(_.toString) ++
+      //     props.pointingsWithObs.observations.toList.map(_.toString)
+      // ).toJSArray
 
-      println(rawData)
-      println(reuseBy)
+      // println(rawData)
+      // println(reuseBy)
 
-      val data = React.raw
-        .asInstanceOf[js.Dynamic]
-        .useMemo(() => rawData, reuseBy)
-        .asInstanceOf[js.Array[TargetResult]]
+      // val data = React.raw
+      //   .asInstanceOf[js.Dynamic]
+      //   .useMemo(() => rawData, reuseBy)
+      //   .asInstanceOf[js.Array[TargetResult]]
 
-      val tableInstance = TargetTable.use(columns, data)
+      tableComponent(
+        TableComponentProps(TargetTable.Options(columns, rawData), props.renderInTitle)
+      )
+
+    }
+  }
+
+  protected val component =
+    ScalaComponent
+      .builder[Props]
+      .renderBackend[Backend]
+      .configure(Reusability.shouldComponentUpdate)
+      .build
+
+  protected final case class TableComponentProps(
+    options:          TargetTable.OptionsType,
+    renderInTitle:    Tile.RenderInTitle
+  )(implicit val ctx: AppContextIO)
+      extends ReactProps[TargetSummaryTable](TargetSummaryTable.component)
+
+  // Horrible hack while we don't fully have hooks.
+  // Reusability is handled in class component, instead of the need to useMemo.
+  // Table is only rerendered when needed, thus avoiding the loop in react-table when passing unstable columns or data.
+  protected val tableComponent =
+    ScalaFnComponent[TableComponentProps] { props =>
+      val tableInstance = TargetTable.use(props.options)
 
       <.div(
         props.renderInTitle(
@@ -185,30 +203,12 @@ object TargetSummaryTable {
             )
           )
         ),
-        tableComponent(
-          (TargetTableComponent(
-             Table(celled = true, selectable = true, striped = true, compact = TableCompact.Very),
-             header = true
-           ),
-           tableInstance
-          )
+        TargetTableComponent(
+          Table(celled = true, selectable = true, striped = true, compact = TableCompact.Very),
+          header = true
+        )(
+          tableInstance
         )
       )
-    }
-  }
-
-  val component =
-    ScalaComponent
-      .builder[Props]
-      .renderBackend[Backend]
-      .configure(Reusability.shouldComponentUpdate)
-      .build
-
-  // Horrible hack while we don't fully have hooks.
-  // Reusability is handled in class component, instead of the need to useMemo.
-  // Table is only rerendered when needed, thus avoiding the loop in react-table when passing unstable columns or data.
-  private val tableComponent =
-    ScalaFnComponent[(TargetTableComponent.Applied, TargetTable.InstanceType)] { props =>
-      props._1(props._2)
     }
 }
