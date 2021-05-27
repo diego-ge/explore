@@ -17,11 +17,21 @@ import reactST.reactTable.util
 import scalajs.js
 import scalajs.js.|
 
+// We can't define a package object since it's already defined in the facade.
+object definitions {
+  type HeaderCellRender = raw.React.Node => TableHeaderCell
+  type HeaderCell       = TableHeaderCell | HeaderCellRender
+
+  protected[reactTable] val defaultHeaderCell: HeaderCell =
+    TableHeaderCell().asInstanceOf[HeaderCell] // Doesn't compile without the cast.
+}
+import definitions._
+
 case class SUITableProps[D, TableInstanceD <: TableInstance[D]](
   table:        Table = Table(),
   header:       Boolean | TableHeader = false,
   headerRow:    TableRow = TableRow(),
-  headerCell:   TableHeaderCell = TableHeaderCell(),
+  headerCell:   HeaderCell = defaultHeaderCell,
   body:         TableBody = TableBody(),
   row:          TableRow = TableRow(),
   cell:         TableCell = TableCell(),
@@ -46,10 +56,14 @@ class SUITable[
     val tableInstance = props.instance
 
     val headerTag: Option[TableHeader] = (props.header: Any) match {
-      case true               => TableHeader().some
-      case false              => none
-      case other: TableHeader => other.some
-      case _                  => ??? // Can't wait for Scala 3's union types
+      case true  => TableHeader().some
+      case false => none
+      case other => other.asInstanceOf[TableHeader].some // Can't wait for Scala 3's union types
+    }
+
+    val headerCell: HeaderCellRender = (props.headerCell: Any) match {
+      case headerCell: TableHeaderCell => node => headerCell(node)
+      case other                       => other.asInstanceOf[HeaderCellRender]
     }
 
     val headerElement: Option[TableHeader] =
@@ -58,10 +72,12 @@ class SUITable[
           TableMaker
             .headersFromGroup(headerRowData)
             .toTagMod { headerCellData: HeaderGroup[D] =>
-              props.headerCell(headerCellData.getHeaderProps())(
-                // headerCellData.renderHeader
+              headerCell(
                 headerCellData.render_Header(reactTableStrings.Header)
-              )
+              )(headerCellData.getHeaderProps())
+            // props.headerCell(headerCellData.getHeaderProps())(
+            //   headerCellData.render_Header(reactTableStrings.Header)
+            // )
             }
         )
       }))
@@ -121,7 +137,7 @@ class SUITable[
     table:      Table = Table(),
     header:     Boolean | TableHeader = false,
     headerRow:  TableRow = TableRow(),
-    headerCell: TableHeaderCell = TableHeaderCell(),
+    headerCell: HeaderCell = defaultHeaderCell,
     body:       TableBody = TableBody(),
     row:        TableRow = TableRow(),
     cell:       TableCell = TableCell(),
