@@ -32,6 +32,7 @@ import explore.model.reusability._
 
 import scalajs.js.JSConverters._
 import reactST.reactTable.mod.UseSortByColumnProps
+import explore.Icons
 
 final case class TargetSummaryTable(
   pointingsWithObs: PointingsWithObs,
@@ -174,10 +175,11 @@ object TargetSummaryTable {
 
   def sortIndicator(col: UseSortByColumnProps[_]): TagMod =
     if (col.isSorted) {
-      val index   = if (col.sortedIndex > 0) (col.sortedIndex + 1).toString else ""
-      val ascDesc = if (col.isSortedDesc.getOrElse(false)) "\u2191" else "\u2193"
-      <.span(s" $index$ascDesc")
-    } else TagMod.empty
+      val index             = if (col.sortedIndex > 0) s"${col.sortedIndex + 1}" else ""
+      val ascDesc: VdomNode =
+        if (col.isSortedDesc.getOrElse(false)) Icons.SortUp else Icons.SortDown
+      <.span(ascDesc, <.small(index))
+    } else Icons.Sort
 
   // Horrible hack while we don't fully have hooks.
   // Reusability is handled in class component, instead of the need to useMemo.
