@@ -26,10 +26,12 @@ import react.semanticui.modules.checkbox.Checkbox
 import react.semanticui.modules.dropdown.DropdownItem
 import react.semanticui.modules.dropdown._
 import reactST.reactTable._
+import reactST.reactTable.syntax._
 import react.common._
 import explore.model.reusability._
 
 import scalajs.js.JSConverters._
+import reactST.reactTable.mod.UseSortByColumnProps
 
 final case class TargetSummaryTable(
   pointingsWithObs: PointingsWithObs,
@@ -170,6 +172,13 @@ object TargetSummaryTable {
   )(implicit val ctx: AppContextIO)
       extends ReactProps[TargetSummaryTable](TargetSummaryTable.component)
 
+  def sortIndicator(col: UseSortByColumnProps[_]): TagMod =
+    if (col.isSorted) {
+      val index   = if (col.sortedIndex > 0) (col.sortedIndex + 1).toString else ""
+      val ascDesc = if (col.isSortedDesc.getOrElse(false)) "\u2191" else "\u2193"
+      <.span(s" $index$ascDesc")
+    } else TagMod.empty
+
   // Horrible hack while we don't fully have hooks.
   // Reusability is handled in class component, instead of the need to useMemo.
   // Table is only rerendered when needed, thus avoiding the loop in react-table when passing unstable columns or data.
@@ -205,7 +214,11 @@ object TargetSummaryTable {
         ),
         TargetTableComponent(
           Table(celled = true, selectable = true, striped = true, compact = TableCompact.Very),
-          header = true
+          header = true,
+          headerCell = (col: TargetTable.ColumnType) =>
+            TableHeaderCell()(util.props2Attrs(col.getHeaderProps()),
+                              util.props2Attrs(col.getSortByToggleProps())
+            )(col.renderHeader, <.span(sortIndicator(col)))
         )(
           tableInstance
         )
