@@ -6,10 +6,10 @@ package explore.model
 import cats.Eq
 import cats.syntax.all._
 import lucuma.core.model.Asterism
-import lucuma.core.model.ConstraintSet
 import lucuma.core.model.Observation
 import lucuma.core.model.Target
 import monocle.Iso
+import cats.data.NonEmptyList
 
 sealed trait Page extends Product with Serializable
 
@@ -25,7 +25,7 @@ object Page {
   final case class TargetsObsPage(obsId: Observation.Id) extends Page
   case object ConfigurationsPage         extends Page
   final case object ConstraintsBasePage  extends Page
-  final case class ConstraintsPage(csId: ConstraintSet.Id) extends Page
+  final case class ConstraintsPage(obsIds: NonEmptyList[Observation.Id]) extends Page
   final case class ConstraintsObsPage(obsId: Observation.Id) extends Page
 
   implicit val eqPage: Eq[Page] = Eq.instance {
@@ -71,8 +71,8 @@ object Page {
   }
 
   object ConstraintsPage {
-    final val csId: Iso[ConstraintSet.Id, ConstraintsPage] =
-      Iso[ConstraintSet.Id, ConstraintsPage](ConstraintsPage.apply)(_.csId)
+    final val csId: Iso[NonEmptyList[Observation.Id], ConstraintsPage] =
+      Iso[NonEmptyList[Observation.Id], ConstraintsPage](ConstraintsPage.apply)(_.obsIds)
   }
 
   object ConstraintsObsPage {

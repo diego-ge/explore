@@ -12,11 +12,20 @@ import lucuma.core.math.Offset
 import lucuma.core.math.Wavelength
 import lucuma.ui.reusability._
 import react.common.Size
+import cats.data.NonEmptyList
 
 /**
  * Reusability instances for model classes
  */
 object reusability {
+  // Move to lucuma-ui
+  implicit val bigDecimalReuse: Reusability[BigDecimal]                               = Reusability.byEq
+  implicit val offsetReuse: Reusability[Offset]                                       = Reusability.byEq
+  implicit val wavelengthReuse: Reusability[Wavelength]                               = Reusability.byEq
+  implicit val keyReuse: Reusability[Key]                                             = Reusability.by_==
+  implicit def nelReuse[A: Reusability]: Reusability[NonEmptyList[A]]                 =
+    Reusability.by(nel => (nel.head, nel.tail))
+  // Model
   implicit val statusReuse: Reusability[PersistentClientStatus]                       = Reusability.derive
   implicit val targetOptionsReuse: Reusability[TargetVisualOptions]                   = Reusability.derive
   implicit val userVaultReuse: Reusability[UserVault]                                 = Reusability.byEq
@@ -38,9 +47,4 @@ object reusability {
     Reusability.byEq
   implicit val obsSummaryWithPointingAndConstraintsReuse
     : Reusability[ObsSummaryWithPointingAndConstraints]                               = Reusability.byEq
-  // Move to lucuma-ui
-  implicit val bigDecimalReuse: Reusability[BigDecimal]                               = Reusability.byEq
-  implicit val offsetReuse: Reusability[Offset]                                       = Reusability.byEq
-  implicit val wavelengthReuse: Reusability[Wavelength]                               = Reusability.byEq
-  implicit val keyReuse: Reusability[Key]                                             = Reusability.by_==
 }
