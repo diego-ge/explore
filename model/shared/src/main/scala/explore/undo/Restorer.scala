@@ -4,6 +4,7 @@
 package explore.undo
 
 import cats.Functor
+import cats.Eq
 
 // We don't use a case class to avoid the type parameter on T
 sealed trait Restorer[F[_], M] { // M = (Local) Model
@@ -37,4 +38,6 @@ object Restorer {
 
       override val onChange = _onChange
     }
+
+  implicit def eqRestorer[F[_], M]: Eq[Restorer[F, M]] = Eq.fromUniversalEquals
 }

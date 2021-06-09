@@ -36,6 +36,14 @@ package object optics {
         def modify(f: To => To): From => From = self.modify(f)
         def set(to:   To): From => From       = self.set(to)
       }
+
+    def composeGetAdjust[X](other: GetAdjust[To, X]): GetAdjust[From, X] =
+      new GetAdjust[From, X](self.asGetter.composeGetter(other.getter),
+                             asAdjuster.composeAdjuster(other.adjuster)
+      )
+
+    @inline final def asGetAdjust: GetAdjust[From, To] =
+      new GetAdjust[From, To](self.asGetter, asAdjuster)
   }
 
   implicit class PrismOps[From, To](val self: Prism[From, To]) extends AnyVal {

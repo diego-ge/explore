@@ -52,6 +52,7 @@ object Routing {
           model.zoom(RootModel.searchingTarget),
           model.zoom(RootModel.expandedIds),
           model.zoom(RootModel.targetSummaryHiddenColumns),
+          model.zoom(RootModel.undoStacks.composeLens(ModelUndoStacks.targetListUndoer)),
           size
         )
       )

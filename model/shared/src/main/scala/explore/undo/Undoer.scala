@@ -110,6 +110,6 @@ abstract class Undoer[F[_]: Sync, M] {
   protected val redo: Undoer.Redo[F, M] =
     restore(popRedo, pushUndo)
 
-  protected def context(stacks: Stacks): Undoer.Context[F, M] =
+  def context(stacks: Stacks): Undoer.Context[F, M] =
     Undoer.Context(set, undo, redo, undoStack.get(stacks).isEmpty, redoStack.get(stacks).isEmpty)
 }

@@ -42,6 +42,7 @@ import react.semanticui.elements.button.Button.ButtonProps
 import react.semanticui.sizes._
 
 import scala.concurrent.duration._
+import explore.undo.v2.UndoStacks2
 
 final case class TargetTabContents(
   userId:           ViewOpt[User.Id],
@@ -49,6 +50,7 @@ final case class TargetTabContents(
   searching:        View[Set[Target.Id]],
   expandedIds:      View[ExpandedIds],
   hiddenColumns:    View[Set[String]],
+  undoStacks:       View[UndoStacks2[IO, PointingsWithObs]],
   size:             ResizeDetector.Dimensions
 )(implicit val ctx: AppContextIO)
     extends ReactProps[TargetTabContents](TargetTabContents.component) {
@@ -110,7 +112,8 @@ object TargetTabContents {
           objectsWithObs,
           props.focused,
           props.expandedIds,
-          props.searching
+          props.searching,
+          props.undoStacks
         )
       )
 

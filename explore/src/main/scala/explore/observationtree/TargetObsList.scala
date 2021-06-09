@@ -23,8 +23,6 @@ import explore.common.TargetQueries
 import explore.common.TargetQueriesGQL
 import explore.components.InputModal
 import explore.components.ui.ExploreStyles
-import explore.components.undo.UndoButtons
-import explore.components.undo.UndoRegion
 import explore.data.KeyedIndexedList
 import explore.implicits._
 import explore.model.ExpandedIds
@@ -38,7 +36,7 @@ import explore.optics._
 import explore.schemas.ObservationDB
 import explore.schemas.ObservationDB.Types._
 import explore.undo.KIListMod
-import explore.undo.Undoer
+import explore.undo.v2._
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
 import lucuma.core.math.Coordinates
@@ -46,7 +44,6 @@ import lucuma.core.model.Asterism
 import lucuma.core.model.Observation
 import lucuma.core.model.SiderealTracking
 import lucuma.core.model.Target
-import monocle.Getter
 import monocle.function.Field1.first
 import monocle.macros.Lenses
 import monocle.std.option.some
@@ -67,12 +64,14 @@ import react.semanticui.views.card.CardContent
 
 import scala.collection.immutable.SortedSet
 import scala.util.Random
+import explore.components.undo.UndoButtons2
 
 final case class TargetObsList(
   pointingsWithObs: View[PointingsWithObs],
   focused:          View[Option[Focused]],
   expandedIds:      View[ExpandedIds],
-  searching:        View[Set[Target.Id]]
+  searching:        View[Set[Target.Id]],
+  undoStacks:       View[UndoStacks2[IO, PointingsWithObs]]
 )(implicit val ctx: AppContextIO)
     extends ReactProps[TargetObsList](TargetObsList.component)
     with ViewCommon
@@ -151,41 +150,8 @@ object TargetObsList {
     ): IO[Unit] =
       UnshareTargetWithAsterisms.execute(targetId, asterismId).void
 
-    private def getPointingForObsWithId(
-      obsWithIndexGetter: Getter[ObsList, obsListMod.ElemWithIndex]
-    ): Getter[PointingsWithObs, Option[Option[PointingId]]] =
-      PointingsWithObs.observations
-        .composeGetter(
-          obsWithIndexGetter
-            .composeOptionLens(first)
-            .composeOptionLens(targetsObsQueryObsPointingId)
-        )
-
-    private def setPointingForObsWithId(
-      pointingsWithObs:      View[PointingsWithObs],
-      obsId:                 Observation.Id,
-      obsWithIndexGetAdjust: GetAdjust[ObsList, obsListMod.ElemWithIndex]
-    )(implicit
-      c:                     TransactionalClient[IO, ObservationDB]
-    ): Option[Option[PointingId]] => IO[Unit] =
-      pointingOpt => {
-        val obsPointingAdjuster = obsWithIndexGetAdjust
-          .composeOptionLens(first) // Focus on Observation within ElemWithIndex
-          .composeOptionLens(targetsObsQueryObsPointingId)
-
-        val observationsView = pointingsWithObs
-          .zoom(PointingsWithObs.observations)
-
-        // 1) Update internal model
-        observationsView.mod(obsPointingAdjuster.set(pointingOpt)) >>
-          // 2) Send mutation
-          pointingOpt
-            .map(newPointingId => moveObs(obsId, newPointingId))
-            .orEmpty
-      }
-
     protected def onDragEnd(
-      setter:      Undoer.Setter[IO, PointingsWithObs],
+      setter:      UndoSetter[IO, PointingsWithObs],
       expandedIds: View[ExpandedIds]
     )(implicit
       c:           TransactionalClient[IO, ObservationDB]
@@ -202,16 +168,23 @@ object TargetObsList {
               (Observation.Id.parse(result.draggableId) match {
                 case Some(obsId) =>
                   // Observation dragged to a target or asterism.
-                  val obsWithId: GetAdjust[ObsList, obsListMod.ElemWithIndex] =
-                    obsListMod.withKey(obsId)
+                  val getAdjust: GetAdjust[PointingsWithObs, Option[Option[PointingId]]] =
+                    PointingsWithObs.observations.composeGetAdjust(
+                      obsListMod
+                        .withKey(obsId)
+                        .composeOptionLens(first) // Focus on Observation within ElemWithIndex
+                        .composeOptionLens(targetsObsQueryObsPointingId)
+                    )
 
                   // TODO Here we should flatten.
                   val set: Option[Option[PointingId]] => IO[Unit] =
                     setter
                       .set[Option[Option[PointingId]]](
-                        props.pointingsWithObs.get,
-                        getPointingForObsWithId(obsWithId.getter).get,
-                        setPointingForObsWithId(props.pointingsWithObs, obsId, obsWithId)
+                        getAdjust.get,
+                        getAdjust.set,
+                        (_: Option[Option[PointingId]])
+                          .map(newPointingId => moveObs(obsId, newPointingId))
+                          .orEmpty
                       )
 
                   destination.droppableId match {
@@ -255,56 +228,36 @@ object TargetObsList {
             .orEmpty
         }
 
-    private def setTargetWithIndex(
-      pointingsWithObs:      View[PointingsWithObs],
-      focused:               View[Option[Focused]],
-      targetId:              Target.Id,
-      targetWithIndexSetter: Adjuster[TargetList, targetListMod.ElemWithIndex],
-      nextToFocus:           Option[TargetResult]
-    )(implicit
-      c:                     TransactionalClient[IO, ObservationDB]
-    ): targetListMod.ElemWithIndex => IO[Unit] =
-      targetWithIndex =>
-        // 1) Update internal model
-        pointingsWithObs
-          .zoom(PointingsWithObs.targets)
-          .mod(targetWithIndexSetter.set(targetWithIndex)) >>
-          // 2) Send mutation & adjust focus
-          targetWithIndex.fold(
-            focused.set(nextToFocus.map(f => Focused.FocusedTarget(f.id))) >> removeTarget(targetId)
-          ) { case (target, _) =>
-            insertTarget(target) >> focused.set(FocusedTarget(targetId).some)
-          }
-
     private def targetMod(
-      setter:           Undoer.Setter[IO, PointingsWithObs],
-      pointingsWithObs: View[PointingsWithObs],
-      focused:          View[Option[Focused]],
-      targetId:         Target.Id,
-      focusOnDelete:    Option[TargetResult]
+      setter:        UndoSetter[IO, PointingsWithObs],
+      focused:       View[Option[Focused]],
+      targetId:      Target.Id,
+      focusOnDelete: Option[TargetResult]
     )(implicit
-      c:                TransactionalClient[IO, ObservationDB]
+      c:             TransactionalClient[IO, ObservationDB]
     ): targetListMod.Operation => IO[Unit] = {
-      val targetWithId: GetAdjust[TargetList, targetListMod.ElemWithIndex] =
-        targetListMod.withKey(targetId)
+      val getAdjust: GetAdjust[PointingsWithObs, targetListMod.ElemWithIndex] =
+        PointingsWithObs.targets.composeGetAdjust(
+          targetListMod.withKey(targetId)
+        )
 
       setter
         .mod[targetListMod.ElemWithIndex](
-          pointingsWithObs.get,
-          PointingsWithObs.targets
-            .composeGetter(targetWithId.getter)
-            .get,
-          setTargetWithIndex(pointingsWithObs,
-                             focused,
-                             targetId,
-                             targetWithId.adjuster,
-                             focusOnDelete
-          )
+          getAdjust.get,
+          getAdjust.set,
+          // TODO Do elegant restoration.
+          _.fold(
+            focused.set(focusOnDelete.map(f => Focused.FocusedTarget(f.id))) >> removeTarget(
+              targetId
+            )
+          ) { case (target, _) =>
+            insertTarget(target) >> focused.set(FocusedTarget(targetId).some)
+          }
         )
     }
 
     protected def newTarget(
-      setter: Undoer.Setter[IO, PointingsWithObs]
+      setter: UndoSetter[IO, PointingsWithObs]
     )(name:   NonEmptyString)(implicit
       c:      TransactionalClient[IO, ObservationDB]
     ): IO[Unit] =
@@ -316,7 +269,7 @@ object TargetObsList {
                          SiderealTracking.const(Coordinates.Zero),
                          List.empty
             )
-          val mod       = targetMod(setter, props.pointingsWithObs, props.focused, newTarget.id, none)
+          val mod       = targetMod(setter, props.focused, newTarget.id, none)
           (
             mod(targetListMod.upsert(newTarget, props.pointingsWithObs.get.targets.length)),
             props.searching.mod(_ + newTarget.id) >>
@@ -336,18 +289,18 @@ object TargetObsList {
 
     protected def deleteTarget(
       targetId:      Target.Id,
-      setter:        Undoer.Setter[IO, PointingsWithObs],
+      setter:        UndoSetter[IO, PointingsWithObs],
       focusOnDelete: Option[TargetResult]
     )(implicit
       c:             TransactionalClient[IO, ObservationDB]
     ): IO[Unit] =
       $.propsIn[IO] >>= { props =>
-        val mod = targetMod(setter, props.pointingsWithObs, props.focused, targetId, focusOnDelete)
+        val mod = targetMod(setter, props.focused, targetId, focusOnDelete)
         mod(targetListMod.delete)
       }
 
     protected def newAsterism(
-      setter: Undoer.Setter[IO, PointingsWithObs]
+      setter: UndoSetter[IO, PointingsWithObs]
     )(name:   NonEmptyString)(implicit
       c:      TransactionalClient[IO, ObservationDB]
     ): IO[Unit] = {
@@ -361,7 +314,7 @@ object TargetObsList {
 
       $.propsIn[IO] >>= { props =>
         newAsterism >>= { asterism =>
-          val mod = asterismMod(setter, props.pointingsWithObs, props.focused, asterism.id, none)
+          val mod = asterismMod(setter, props.focused, asterism.id, none)
           mod(asterismListMod.upsert(asterism, props.pointingsWithObs.get.asterisms.length))
         }
       }
@@ -369,110 +322,75 @@ object TargetObsList {
 
     protected def deleteAsterism(
       asterismId:    Asterism.Id,
-      setter:        Undoer.Setter[IO, PointingsWithObs],
+      setter:        UndoSetter[IO, PointingsWithObs],
       focusOnDelete: Option[AsterismIdName]
     )(implicit
       c:             TransactionalClient[IO, ObservationDB]
     ): IO[Unit] =
       $.propsIn[IO] >>= { props =>
         val mod =
-          asterismMod(setter, props.pointingsWithObs, props.focused, asterismId, focusOnDelete)
+          asterismMod(setter, props.focused, asterismId, focusOnDelete)
         mod(asterismListMod.delete)
       }
 
-    private def setAsterismWithIndex(
-      pointingsWithObs:        View[PointingsWithObs],
-      focused:                 View[Option[Focused]],
-      asterismId:              Asterism.Id,
-      asterismWithIndexSetter: Adjuster[AsterismList, asterismListMod.ElemWithIndex],
-      nextToFoucs:             Option[AsterismIdName]
-    )(implicit
-      c:                       TransactionalClient[IO, ObservationDB]
-    ): asterismListMod.ElemWithIndex => IO[Unit] = { asterismWithIndex =>
-      val view = pointingsWithObs
-        .zoom(PointingsWithObs.asterisms)
-
-      // 1) Update internal model
-      view
-        .mod(asterismWithIndexSetter.set(asterismWithIndex)) >>
-        // 2) Send mutation & adjust focus
-        asterismWithIndex.fold(
-          focused.set(nextToFoucs.map(f => FocusedAsterism(f.id))) >> removeAsterism(asterismId)
-        ) { case (asterism, _) =>
-          insertAsterism(asterism) >> focused.set(FocusedAsterism(asterismId).some)
-        }
-    }
-
     private def asterismMod(
-      setter:           Undoer.Setter[IO, PointingsWithObs],
-      pointingsWithObs: View[PointingsWithObs],
-      focused:          View[Option[Focused]],
-      asterismId:       Asterism.Id,
-      focusOnDelete:    Option[AsterismIdName]
+      setter:        UndoSetter[IO, PointingsWithObs],
+      focused:       View[Option[Focused]],
+      asterismId:    Asterism.Id,
+      focusOnDelete: Option[AsterismIdName]
     )(implicit
-      c:                TransactionalClient[IO, ObservationDB]
+      c:             TransactionalClient[IO, ObservationDB]
     ): asterismListMod.Operation => IO[Unit] = {
-      val asterismWithId: GetAdjust[AsterismList, asterismListMod.ElemWithIndex] =
-        asterismListMod.withKey(asterismId)
+      val getAdjust: GetAdjust[PointingsWithObs, asterismListMod.ElemWithIndex] =
+        PointingsWithObs.asterisms.composeGetAdjust(
+          asterismListMod.withKey(asterismId)
+        )
 
       setter
         .mod[asterismListMod.ElemWithIndex](
-          pointingsWithObs.get,
-          PointingsWithObs.asterisms
-            .composeGetter(asterismWithId.getter)
-            .get,
-          setAsterismWithIndex(pointingsWithObs,
-                               focused,
-                               asterismId,
-                               asterismWithId.adjuster,
-                               focusOnDelete
-          )
+          getAdjust.get,
+          getAdjust.set,
+          // TODO Do elegant restoration.
+          _.fold(
+            focused.set(focusOnDelete.map(f => FocusedAsterism(f.id))) >> removeAsterism(asterismId)
+          ) { case (asterism, _) =>
+            insertAsterism(asterism) >> focused.set(FocusedAsterism(asterismId).some)
+          }
         )
+
     }
 
-    private def setAsterismTargetWithIndex(
-      pointingsWithObs:      View[PointingsWithObs],
-      targetId:              Target.Id,
-      asterismId:            Asterism.Id,
-      targetWithIndexSetter: Adjuster[AsterismTargetList, asterismTargetListMod.ElemWithIndex]
+    private def asterismTargetMod(
+      setter:     UndoSetter[IO, PointingsWithObs],
+      targetId:   Target.Id,
+      asterismId: Asterism.Id
     )(implicit
-      c:                     TransactionalClient[IO, ObservationDB]
-    ): asterismTargetListMod.ElemWithIndex => IO[Unit] =
-      targetWithIndex =>
-        // 1) Update internal model
-        pointingsWithObs
-          .zoom(PointingsWithObs.asterisms)
-          .zoomGetAdjust(asterismListMod.withKey(asterismId))
-          .zoomPrism(some)
-          .zoomLens(first)
-          .zoom(AsterismIdName.targets)
-          .mod(targetWithIndexSetter.set(targetWithIndex)) >>
-          // 2) Send mutation & adjust focus
-          targetWithIndex.fold(
+      c:          TransactionalClient[IO, ObservationDB]
+    ): asterismTargetListMod.Operation => IO[Unit] = {
+      val getAdjust =
+        PointingsWithObs.asterisms.composeGetAdjust(asterismListMod.withKey(asterismId))
+
+      val targetWithId: GetAdjust[AsterismTargetList, asterismTargetListMod.ElemWithIndex] =
+        asterismTargetListMod.withKey(targetId)
+
+      val adjuster =
+        getAdjust.adjuster
+          .composePrism(some)
+          .composeLens(first)
+          .composeLens(AsterismIdName.targets)
+          .composeAdjuster(targetWithId.adjuster)
+
+      setter
+        .mod[asterismTargetListMod.ElemWithIndex](
+          getAdjust.getter
+            .map(_.map(_._1.targets).map(targetWithId.getter.get).flatten)
+            .get,
+          adjuster.set,
+          _.fold(
             unshareTargetWithAsterism(targetId, asterismId)
           ) { case (target, _) =>
             shareTargetWithAsterism(target.id, asterismId)
           }
-
-    private def asterismTargetMod(
-      setter:           Undoer.Setter[IO, PointingsWithObs],
-      pointingsWithObs: View[PointingsWithObs],
-      targetId:         Target.Id,
-      asterismId:       Asterism.Id
-    )(implicit
-      c:                TransactionalClient[IO, ObservationDB]
-    ): asterismTargetListMod.Operation => IO[Unit] = {
-      val targetWithId: GetAdjust[AsterismTargetList, asterismTargetListMod.ElemWithIndex] =
-        asterismTargetListMod.withKey(targetId)
-
-      setter
-        .mod[asterismTargetListMod.ElemWithIndex](
-          pointingsWithObs.get,
-          PointingsWithObs.asterisms
-            .composeGetter(asterismListMod.withKey(asterismId).getter)
-            .map(_.map(_._1.targets).map(targetWithId.getter.get).flatten)
-            .get,
-          setAsterismTargetWithIndex(pointingsWithObs, targetId, asterismId, targetWithId.adjuster)
         )
     }
 
@@ -480,11 +398,11 @@ object TargetObsList {
       pointingsWithObs: View[PointingsWithObs],
       target:           TargetResult,
       asterismId:       Asterism.Id,
-      setter:           Undoer.Setter[IO, PointingsWithObs]
+      setter:           UndoSetter[IO, PointingsWithObs]
     )(implicit
       c:                TransactionalClient[IO, ObservationDB]
     ): IO[Unit] = {
-      val mod = asterismTargetMod(setter, pointingsWithObs, target.id, asterismId)
+      val mod = asterismTargetMod(setter, target.id, asterismId)
       mod(
         asterismTargetListMod.upsert(
           AsterismResultTarget(target.id, target.name),
@@ -496,14 +414,13 @@ object TargetObsList {
     protected def deleteTargetFromAsterism(
       targetId:   Target.Id,
       asterismId: Asterism.Id,
-      setter:     Undoer.Setter[IO, PointingsWithObs]
+      setter:     UndoSetter[IO, PointingsWithObs]
     )(implicit
       c:          TransactionalClient[IO, ObservationDB]
-    ): IO[Unit] =
-      $.propsIn[IO] >>= { props =>
-        val mod = asterismTargetMod(setter, props.pointingsWithObs, targetId, asterismId)
-        mod(asterismTargetListMod.delete)
-      }
+    ): IO[Unit] = {
+      val mod = asterismTargetMod(setter, targetId, asterismId)
+      mod(asterismTargetListMod.delete)
+    }
 
     def toggleExpanded[A: Eq](
       id:          A,
@@ -521,7 +438,7 @@ object TargetObsList {
     def renderFn(
       props:        Props,
       state:        View[State],
-      undoCtx:      Undoer.Context[IO, PointingsWithObs]
+      undoCtx:      UndoContext[IO, PointingsWithObs]
     )(implicit ctx: AppContextIO): VdomNode = {
       val observations  = props.pointingsWithObs.get.observations
       val obsByPointing = observations.toList.groupBy(_.pointing)
@@ -558,13 +475,13 @@ object TargetObsList {
           )
         }
 
-      val handleDragEnd = onDragEnd(undoCtx.setter, props.expandedIds)
+      val handleDragEnd = onDragEnd(undoCtx, props.expandedIds)
 
       def createTarget(name: NonEmptyString): Callback =
-        newTarget(undoCtx.setter)(name).runAsyncCB
+        newTarget(undoCtx)(name).runAsyncCB
 
       def createAsterism(name: NonEmptyString): Callback =
-        newAsterism(undoCtx.setter)(name).runAsyncCB
+        newAsterism(undoCtx)(name).runAsyncCB
 
       DragDropContext(
         onDragStart =
@@ -604,7 +521,7 @@ object TargetObsList {
                 )
               )
             ),
-            UndoButtons(props.pointingsWithObs.get, undoCtx, size = Mini)
+            UndoButtons2(undoCtx, size = Mini)
           ),
           <.div(
             Button(onClick = props.focused.set(none).runAsyncCB,
@@ -676,7 +593,7 @@ object TargetObsList {
                                 clazz = ExploreStyles.DeleteButton |+| ExploreStyles.JustifyRight,
                                 onClickE = (e: ReactMouseEvent, _: ButtonProps) =>
                                   e.stopPropagationCB >>
-                                    deleteTarget(targetId, undoCtx.setter, focusOnDelete).runAsyncCB
+                                    deleteTarget(targetId, undoCtx, focusOnDelete).runAsyncCB
                               )(
                                 Icons.Trash
                               ),
@@ -824,10 +741,7 @@ object TargetObsList {
                                 clazz = ExploreStyles.DeleteButton |+| ExploreStyles.JustifyRight,
                                 onClickE = (e: ReactMouseEvent, _: ButtonProps) =>
                                   e.stopPropagationCB >>
-                                    deleteAsterism(asterismId,
-                                                   undoCtx.setter,
-                                                   focusOnDelete
-                                    ).runAsyncCB
+                                    deleteAsterism(asterismId, undoCtx, focusOnDelete).runAsyncCB
                               )(
                                 Icons.Trash
                               ),
@@ -855,7 +769,7 @@ object TargetObsList {
                                             e.stopPropagationCB >>
                                               deleteTargetFromAsterism(target.id,
                                                                        asterismId,
-                                                                       undoCtx.setter
+                                                                       undoCtx
                                               ).runAsyncCB
                                         )(
                                           Icons.Trash
@@ -932,7 +846,12 @@ object TargetObsList {
 
     def render(props: Props) = {
       implicit val ctx = props.ctx
-      UndoRegion[PointingsWithObs](Reuse(renderFn _)(props, ViewF.fromState[IO]($)))
+
+      renderFn(props, ViewF.fromState[IO]($), UndoContext(props.undoStacks, props.pointingsWithObs))
+
+      // ViewUndoer(props.undoStacks).context
+
+      // UndoRegion[PointingsWithObs](Reuse(renderFn _)(props, ViewF.fromState[IO]($)))
     }
   }
 

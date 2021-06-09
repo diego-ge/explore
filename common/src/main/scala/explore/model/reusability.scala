@@ -12,6 +12,8 @@ import lucuma.core.math.Offset
 import lucuma.core.math.Wavelength
 import lucuma.ui.reusability._
 import react.common.Size
+import explore.undo.UndoStacks
+import explore.undo.v2.UndoStacks2
 
 /**
  * Reusability instances for model classes
@@ -38,6 +40,8 @@ object reusability {
     Reusability.byEq
   implicit val obsSummaryWithPointingAndConstraintsReuse
     : Reusability[ObsSummaryWithPointingAndConstraints]                               = Reusability.byEq
+  implicit def undoStacksReuse[F[_], M]: Reusability[UndoStacks[F, M]]                = Reusability.byEq
+  implicit def undoStacks2Reuse[F[_], M]: Reusability[UndoStacks2[F, M]]              = Reusability.byEq
   // Move to lucuma-ui
   implicit val bigDecimalReuse: Reusability[BigDecimal]                               = Reusability.byEq
   implicit val offsetReuse: Reusability[Offset]                                       = Reusability.byEq

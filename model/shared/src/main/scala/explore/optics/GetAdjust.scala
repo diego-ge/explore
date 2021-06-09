@@ -11,6 +11,14 @@ final case class GetAdjust[T, A](getter: Getter[T, A], adjuster: Adjuster[T, A])
   lazy val get: T => A             = getter.get
   lazy val set: A => T => T        = adjuster.set
   lazy val mod: (A => A) => T => T = adjuster.modify
+
+  def composeLens[B](lens: Lens[A, B]): GetAdjust[T, B] =
+    GetAdjust(getter.composeLens(lens), adjuster.composeLens(lens))
+
+  // composing Getter with Prism returns a Fold. Ouch.
+  // def composePrism[B](lens: Prism[A, B]): GetAdjust[T, B] =
+  //   GetAdjust(getter.composePrism(lens), adjuster.composePrism(lens))
+
 }
 object GetAdjust {
   def apply[T, A](lens: Lens[T, A]): GetAdjust[T, A] =
