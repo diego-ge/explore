@@ -21,6 +21,10 @@ import monocle.std.option
 
 import scala.collection.immutable.HashSet
 
+//@Lenses
+//case class UndoContexts(targetList: Undo.Context[..], targets: Map[Target.Id, Undo.Context[]])
+// or use vault here and have the keys created in explore
+
 @Lenses
 case class RootModel(
   vault:                      Option[UserVault],
