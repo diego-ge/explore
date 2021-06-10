@@ -65,6 +65,7 @@ import react.semanticui.views.card.CardContent
 import scala.collection.immutable.SortedSet
 import scala.util.Random
 import explore.components.undo.UndoButtons2
+import monocle.Getter
 
 final case class TargetObsList(
   pointingsWithObs: View[PointingsWithObs],
@@ -80,7 +81,10 @@ object TargetObsList {
   type Props = TargetObsList
 
   @Lenses
-  case class State(dragging: Boolean = false)
+  case class State(
+    dragging: Boolean = false
+    // undoStacks: UndoStacks2[IO, PointingsWithObs] = UndoStacks2.empty
+  )
 
   implicit val propsReuse: Reusability[Props] = Reusability.derive
   implicit val stateReuse: Reusability[State] = Reusability.derive
@@ -120,10 +124,15 @@ object TargetObsList {
         }
         .void
 
-    def removeTarget(id: Target.Id)(implicit
+    def deleteTarget(id: Target.Id)(implicit
       c:                 TransactionalClient[IO, ObservationDB]
     ): IO[Unit] =
-      RemoveTarget.execute(id).void
+      DeleteTarget.execute(id).void
+
+    def undeleteTarget(id: Target.Id)(implicit
+      c:                   TransactionalClient[IO, ObservationDB]
+    ): IO[Unit] =
+      UndeleteTarget.execute(id).void
 
     def insertAsterism(asterism: AsterismIdName)(implicit
       c:                         TransactionalClient[IO, ObservationDB]
@@ -135,10 +144,15 @@ object TargetObsList {
         }
         .void
 
-    def removeAsterism(id: Asterism.Id)(implicit
+    def deleteAsterism(id: Asterism.Id)(implicit
       c:                   TransactionalClient[IO, ObservationDB]
     ): IO[Unit] =
-      RemoveAsterism.execute(id).void
+      DeleteAsterism.execute(id).void
+
+    def undeleteAsterism(id: Asterism.Id)(implicit
+      c:                     TransactionalClient[IO, ObservationDB]
+    ): IO[Unit] =
+      UndeleteAsterism.execute(id).void
 
     def shareTargetWithAsterism(targetId: Target.Id, asterismId: Asterism.Id)(implicit
       c:                                  TransactionalClient[IO, ObservationDB]
@@ -176,7 +190,6 @@ object TargetObsList {
                         .composeOptionLens(targetsObsQueryObsPointingId)
                     )
 
-                  // TODO Here we should flatten.
                   val set: Option[Option[PointingId]] => IO[Unit] =
                     setter
                       .set[Option[Option[PointingId]]](
@@ -245,13 +258,17 @@ object TargetObsList {
         .mod[targetListMod.ElemWithIndex](
           getAdjust.get,
           getAdjust.set,
-          // TODO Do elegant restoration.
-          _.fold(
-            focused.set(focusOnDelete.map(f => Focused.FocusedTarget(f.id))) >> removeTarget(
-              targetId
-            )
+          onSet = _.fold(
+            focused.set(focusOnDelete.map(f => Focused.FocusedTarget(f.id))) >>
+              deleteTarget(targetId)
           ) { case (target, _) =>
             insertTarget(target) >> focused.set(FocusedTarget(targetId).some)
+          },
+          onRestore = (_: targetListMod.ElemWithIndex).fold(
+            focused.set(focusOnDelete.map(f => Focused.FocusedTarget(f.id))) >>
+              deleteTarget(targetId)
+          ) { case (target, _) =>
+            undeleteTarget(target.id) >> focused.set(FocusedTarget(target.id).some)
           }
         )
     }
@@ -350,11 +367,17 @@ object TargetObsList {
         .mod[asterismListMod.ElemWithIndex](
           getAdjust.get,
           getAdjust.set,
-          // TODO Do elegant restoration.
-          _.fold(
-            focused.set(focusOnDelete.map(f => FocusedAsterism(f.id))) >> removeAsterism(asterismId)
+          onSet = _.fold(
+            focused.set(focusOnDelete.map(f => FocusedAsterism(f.id))) >>
+              deleteAsterism(asterismId)
           ) { case (asterism, _) =>
-            insertAsterism(asterism) >> focused.set(FocusedAsterism(asterismId).some)
+            insertAsterism(asterism) >> focused.set(FocusedAsterism(asterism.id).some)
+          },
+          onRestore = (_: asterismListMod.ElemWithIndex).fold(
+            focused.set(focusOnDelete.map(f => FocusedAsterism(f.id))) >>
+              deleteAsterism(asterismId)
+          ) { case (asterism, _) =>
+            undeleteAsterism(asterism.id) >> focused.set(FocusedAsterism(asterism.id).some)
           }
         )
 
@@ -367,13 +390,17 @@ object TargetObsList {
     )(implicit
       c:          TransactionalClient[IO, ObservationDB]
     ): asterismTargetListMod.Operation => IO[Unit] = {
-      val getAdjust =
+      val getAdjust: GetAdjust[PointingsWithObs, asterismListMod.ElemWithIndex] =
         PointingsWithObs.asterisms.composeGetAdjust(asterismListMod.withKey(asterismId))
 
       val targetWithId: GetAdjust[AsterismTargetList, asterismTargetListMod.ElemWithIndex] =
         asterismTargetListMod.withKey(targetId)
 
-      val adjuster =
+      val getter: Getter[PointingsWithObs, asterismTargetListMod.ElemWithIndex] =
+        getAdjust.getter
+          .map(_.map(_._1.targets).map(targetWithId.getter.get).flatten)
+
+      val adjuster: Adjuster[PointingsWithObs, asterismTargetListMod.ElemWithIndex] =
         getAdjust.adjuster
           .composePrism(some)
           .composeLens(first)
@@ -382,9 +409,7 @@ object TargetObsList {
 
       setter
         .mod[asterismTargetListMod.ElemWithIndex](
-          getAdjust.getter
-            .map(_.map(_._1.targets).map(targetWithId.getter.get).flatten)
-            .get,
+          getter.get,
           adjuster.set,
           _.fold(
             unshareTargetWithAsterism(targetId, asterismId)
@@ -847,11 +872,22 @@ object TargetObsList {
     def render(props: Props) = {
       implicit val ctx = props.ctx
 
+      // val stacks = ViewF.fromState[IO]($).zoom(State.undoStacks)
+
+      println("*" * 50)
+      println(s"UNDO STACK: [${props.undoStacks.get.undo}]")
+      println(s"REDO STACK: [${props.undoStacks.get.redo}]")
+      println(s"WORKING   : [${props.undoStacks.get.working}]")
+      // println(s"UNDO STACK: [${stacks.get.undo}]")
+      // println(s"REDO STACK: [${stacks.get.redo}]")
+      println(s"TARGETS:   [${props.pointingsWithObs.get.targets.toList.map(t => (t.id, t.name))}]")
+      println(
+        s"ASTERISMS: [${props.pointingsWithObs.get.asterisms.toList.map(a => (a.id, a.name))}]"
+      )
+      println("*" * 50)
+
       renderFn(props, ViewF.fromState[IO]($), UndoContext(props.undoStacks, props.pointingsWithObs))
-
-      // ViewUndoer(props.undoStacks).context
-
-      // UndoRegion[PointingsWithObs](Reuse(renderFn _)(props, ViewF.fromState[IO]($)))
+      // renderFn(props, ViewF.fromState[IO]($), UndoContext(stacks, props.pointingsWithObs))
     }
   }
 

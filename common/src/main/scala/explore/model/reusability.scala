@@ -41,7 +41,8 @@ object reusability {
   implicit val obsSummaryWithPointingAndConstraintsReuse
     : Reusability[ObsSummaryWithPointingAndConstraints]                               = Reusability.byEq
   implicit def undoStacksReuse[F[_], M]: Reusability[UndoStacks[F, M]]                = Reusability.byEq
-  implicit def undoStacks2Reuse[F[_], M]: Reusability[UndoStacks2[F, M]]              = Reusability.byEq
+  implicit def undoStacks2Reuse[F[_], M]: Reusability[UndoStacks2[F, M]]              =
+    Reusability.by(s => (s.undo.length, s.redo.length, s.working))
   // Move to lucuma-ui
   implicit val bigDecimalReuse: Reusability[BigDecimal]                               = Reusability.byEq
   implicit val offsetReuse: Reusability[Offset]                                       = Reusability.byEq

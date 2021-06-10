@@ -159,7 +159,7 @@ object TargetObsQueriesGQL {
   }
 
   @GraphQL
-  trait RemoveTarget extends GraphQLOperation[ObservationDB] {
+  trait DeleteTarget extends GraphQLOperation[ObservationDB] {
     val document = """
       mutation($targetId: TargetId!) {
         deleteTarget(targetId: $targetId) {
@@ -196,7 +196,7 @@ object TargetObsQueriesGQL {
   }
 
   @GraphQL
-  trait RemoveAsterism extends GraphQLOperation[ObservationDB] {
+  trait DeleteAsterism extends GraphQLOperation[ObservationDB] {
     val document = """
       mutation($asterismId: AsterismId!) {
         deleteAsterism(asterismId: $asterismId) {

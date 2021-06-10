@@ -20,8 +20,7 @@ import explore.common.ConstraintsQueries._
 import explore.components.HelpIcon
 import explore.components.Tile
 import explore.components.ui.ExploreStyles
-import explore.components.undo.UndoButtons
-import explore.components.undo.UndoRegion
+import explore.components.undo.UndoButtons2
 import explore.implicits._
 import explore.model.AirMassRange
 import explore.model.Help
@@ -58,6 +57,8 @@ import react.semanticui.modules.popup.PopupWide
 import react.semanticui.sizes._
 
 import scala.util.Random
+import explore.undo.v2.UndoContext
+import explore.undo.v2.UndoStacks2
 
 final case class ConstraintsPanel(
   id:             ConstraintSet.Id,
@@ -94,10 +95,11 @@ object ConstraintsPanel {
 
   @Lenses
   final case class State(
-    rangeType: ElevationRangeType,
-    airMass:   AirMassRange,
-    hourAngle: HourAngleRange,
-    copying:   Boolean = false
+    rangeType:  ElevationRangeType,
+    airMass:    AirMassRange,
+    hourAngle:  HourAngleRange,
+    copying:    Boolean = false,
+    undoStacks: UndoStacks2[IO, ConstraintSetModel] = UndoStacks2.empty
   )
 
   protected implicit val propsReuse: Reusability[Props] = Reusability.derive
@@ -124,12 +126,12 @@ object ConstraintsPanel {
     private def renderFn(
       props:        Props,
       state:        View[State],
-      undoCtx:      Undoer.Context[IO, ConstraintSetModel]
+      undoCtx:      UndoContext[IO, ConstraintSetModel]
     )(implicit ctx: AppContextIO): VdomNode = {
       val constraintSet = props.constraintSet
 
       val undoViewSet =
-        UndoView(props.id, constraintSet, undoCtx.setter)
+        UndoView(props.id, undoCtx)
 
       def nameView = undoViewSet(ConstraintSetModel.name, UpdateConstraintSet.name)
       def erView   =
@@ -226,7 +228,7 @@ object ConstraintsPanel {
               ),
               editWarning.when(obsCount > 1)
             ),
-            UndoButtons(constraintSet.get, undoCtx).unless(readOnly)
+            UndoButtons2(undoCtx).unless(readOnly)
           )
         ),
         Form(loading = state.get.copying)(ExploreStyles.Grid, ExploreStyles.ConstraintsGrid)(
@@ -276,9 +278,11 @@ object ConstraintsPanel {
               FormInputEV(
                 id = "minam",
                 label = "Min",
-                value = state
-                  .zoom(State.airMass)
-                  .zoom(AirMassRange.min)
+                value = new ViewFOps(
+                  state
+                    .zoom(State.airMass)
+                    .zoom(AirMassRange.min)
+                )
                   .zoomSplitEpi(
                     TruncatedRefinedBigDecimal.unsafeRefinedBigDecimal[AirMassRange.Value, 1]
                   )
@@ -385,7 +389,11 @@ object ConstraintsPanel {
     }
 
     def render(props: Props) = AppCtx.using { implicit appCtx =>
-      UndoRegion[ConstraintSetModel](Reuse.currying(props, ViewF.fromState[IO]($)).in(renderFn _))
+      // UndoRegion[ConstraintSetModel](Reuse.currying(props, ViewF.fromState[IO]($)).in(renderFn _))
+      renderFn(props,
+               ViewF.fromState[IO]($),
+               UndoContext(ViewF.fromState[IO]($).zoom(State.undoStacks), props.constraintSet)
+      )
     }
   }
 

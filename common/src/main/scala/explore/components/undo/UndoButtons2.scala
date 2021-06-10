@@ -7,7 +7,6 @@ import cats.MonadError
 import cats.effect.std.Dispatcher
 import crystal.react.implicits._
 import explore.Icons
-import explore.components.WIP
 import explore.components.ui.ExploreStyles
 import explore.undo.v2._
 import japgolly.scalajs.react._
@@ -38,22 +37,24 @@ object UndoButtons2 {
         implicit val dispatcher = p.dispatcher
         implicit val logger     = p.logger
 
-        WIP(
+        <.span(
           ExploreStyles.ButtonsUndo,
           ButtonGroup(labeled = true, icon = true, compact = true, size = p.size)(
             Button(
-              onClick = p.undoCtx.undo.runAsyncCB,
+              onClick = Callback.log("UNDO CLICK") >> p.undoCtx.undo.runAsyncCB,
               size = p.size,
-              disabled = p.undoCtx.undoEmpty || p.disabled,
+              disabled = p.undoCtx.isUndoEmpty || p.disabled,
+              loading = p.undoCtx.working,
               clazz = ExploreStyles.VeryCompact,
               icon = Icons.Undo,
               content = "Undo",
               labelPosition = LabelPosition.Left
             ),
             Button(
-              onClick = p.undoCtx.redo.runAsyncCB,
+              onClick = Callback.log("REDO CLICK") >> p.undoCtx.redo.runAsyncCB,
               size = p.size,
-              disabled = p.undoCtx.redoEmpty || p.disabled,
+              disabled = p.undoCtx.isRedoEmpty || p.disabled,
+              loading = p.undoCtx.working,
               clazz = ExploreStyles.VeryCompact,
               icon = Icons.Redo,
               content = "Redo",

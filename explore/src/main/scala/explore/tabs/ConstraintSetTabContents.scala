@@ -43,7 +43,7 @@ import scala.collection.immutable.SortedSet
 import scala.concurrent.duration._
 
 final case class ConstraintSetTabContents(
-  userId:           ViewOpt[User.Id],
+  userId:           Option[User.Id],
   focused:          View[Option[Focused]],
   expandedIds:      View[SortedSet[ConstraintSet.Id]],
   size:             ResizeDetector.Dimensions
@@ -64,7 +64,7 @@ object ConstraintSetTabContents {
     $ : ComponentDidMount[Props, State, Unit]
   ): Callback = {
     implicit val ctx = $.props.ctx
-    (UserAreaWidths.queryWithDefault[IO]($.props.userId.get,
+    (UserAreaWidths.queryWithDefault[IO]($.props.userId,
                                          ResizableSection.ConstraintSetsTree,
                                          Constants.InitialTreeWidth.toInt
     ) >>= $.setStateLIn[IO](TwoPanelState.treeWidth)).runAsyncCB
@@ -87,7 +87,7 @@ object ConstraintSetTabContents {
       (_: ReactEvent, d: ResizeCallbackData) =>
         (state.zoom(TwoPanelState.treeWidth).set(d.size.width) *>
           UserWidthsCreation
-            .storeWidthPreference[IO](props.userId.get,
+            .storeWidthPreference[IO](props.userId,
                                       ResizableSection.ConstraintSetsTree,
                                       d.size.width
             )).runAsyncCB

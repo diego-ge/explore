@@ -51,7 +51,7 @@ import react.semanticui.sizes._
 import scala.concurrent.duration._
 
 final case class ObsTabContents(
-  userId:           ViewOpt[User.Id],
+  userId:           Option[User.Id],
   focused:          View[Option[Focused]],
   searching:        View[Set[Target.Id]],
   size:             ResizeDetector.Dimensions
@@ -215,7 +215,7 @@ object ObsTabContents {
     // TODO Use this method
     def readTargetPreferences(targetId: Target.Id)(implicit ctx: AppContextIO): Callback =
       $.props.flatMap { p =>
-        p.userId.get.map { uid =>
+        p.userId.map { uid =>
           UserTargetPreferencesQuery
             .queryWithDefault[IO](uid, targetId, Constants.InitialFov)
             .flatMap(v => $.modStateIn[IO](State.fovAngle.set(v)))
@@ -233,7 +233,7 @@ object ObsTabContents {
         (_: ReactEvent, d: ResizeCallbackData) =>
           $.setStateL(State.panelsWidth)(d.size.width) *>
             UserWidthsCreation
-              .storeWidthPreference[IO](props.userId.get,
+              .storeWidthPreference[IO](props.userId,
                                         ResizableSection.ObservationsTree,
                                         d.size.width
               )
@@ -315,13 +315,13 @@ object ObsTabContents {
 
       val rightSideRGL =
         TileController(
-          props.userId.get,
+          props.userId,
           coreWidth,
           defaultLayout,
           layouts,
           List(
             notesTile,
-            TargetTile.targetTile(props.userId.get,
+            TargetTile.targetTile(props.userId,
                                   targetId,
                                   props.searching,
                                   state.zoom(State.options)
@@ -397,8 +397,7 @@ object ObsTabContents {
         }
       )
       .renderBackend[Backend]
-      .componentDidMount($ => $.backend.readTabPreference($.props.userId.get)($.props.ctx))
+      .componentDidMount($ => $.backend.readTabPreference($.props.userId)($.props.ctx))
       .configure(Reusability.shouldComponentUpdate)
       .build
-
 }

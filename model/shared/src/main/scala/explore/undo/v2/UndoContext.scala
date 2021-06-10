@@ -5,6 +5,8 @@ import crystal.ViewF
 import cats.Monad
 import crystal.implicits._
 import monocle.Lens
+// import cats.effect.Concurrent
+// import cats.effect.implicits._
 
 trait UndoSetter[F[_], M] {
   def set[A](
@@ -54,33 +56,63 @@ case class UndoContext[F[_]: Monad, M](stacks: ViewF[F, UndoStacks2[F, M]], mode
   private lazy val undoStack: ViewF[F, UndoStack[F, M]] = stacks.zoom(UndoStacks2.undo)
   private lazy val redoStack: ViewF[F, UndoStack[F, M]] = stacks.zoom(UndoStacks2.redo)
 
-  lazy val undoEmpty: Boolean = stacks.get.undo.isEmpty
-  lazy val redoEmpty: Boolean = stacks.get.redo.isEmpty
+  lazy val isUndoEmpty: Boolean = stacks.get.undo.isEmpty
+  lazy val isRedoEmpty: Boolean = stacks.get.redo.isEmpty
+
+  lazy val working: Boolean = stacks.get.working
 
   private def push(stack: ViewF[F, UndoStack[F, M]]): Restorer2[F, M] => F[Unit] =
     restorer => stack.mod(s => restorer +: s)
 
-  private def pop(stack: ViewF[F, UndoStack[F, M]]): F[Option[Restorer2[F, M]]] =
-    // TODO It'd be nice to have a modify in ViewF like Ref has, allowing to extract something from old value (head in this case) that's not present in the new value.
-    stack.get match {
-      case head :: tail => stack.set(tail).as(head.some)
-      case _            => none.pure[F]
-    }
+  private def undoStacks: F[Option[Restorer2[F, M]]] =
+    stacks.modAndExtract(ss =>
+      ss.undo match {
+        // HERE on head.onModel(model.get) Sometimes obtaining wrong value!!!!
+        case head :: tail =>
+          (UndoStacks2(tail, head.onModel(model.get) +: ss.redo, true), head.some)
+        case _            => (ss, none)
+      }
+    )
+
+  private def redoStacks: F[Option[Restorer2[F, M]]] =
+    stacks.modAndExtract(ss =>
+      ss.redo match {
+        case head :: tail =>
+          (UndoStacks2(head.onModel(model.get) +: ss.undo, tail, true), head.some)
+        case _            => (ss, none)
+      }
+    )
+
+  // private def pop(stack: ViewF[F, UndoStack[F, M]]): F[Option[Restorer2[F, M]]] =
+  //   // TODO It'd be nice to have a modify in ViewF like Ref has, allowing to extract something from old value (head in this case) that's not present in the new value.
+  //   stack.get match {
+  //     case head :: tail => stack.set(tail).as(head.some)
+  //     case _            => none.pure[F]
+  //   }
 
   private def reset(stack: ViewF[F, UndoStack[F, M]]): F[Unit] =
     stack.set(List.empty)
 
-  private def restore(
-    fromStack: ViewF[F, UndoStack[F, M]],
-    toStack:   ViewF[F, UndoStack[F, M]]
-  ): F[Unit] =
-    pop(fromStack).flatMap(
-      _.map(restorer =>
-        push(toStack)(restorer.onModel(model.get)) >>
-          model.mod(restorer.setter(restorer.value)) >>
-          restorer.onRestore(restorer.value)
-      ).orUnit
-    )
+  // private def restore(
+  //   fromStack: ViewF[F, UndoStack[F, M]],
+  //   toStack:   ViewF[F, UndoStack[F, M]]
+  // ): F[Unit] =
+  //   pop(fromStack).flatMap(
+  //     _.map(restorer =>
+  //       push(toStack)(restorer.onModel(model.get)) >>
+  //         model.mod(restorer.setter(restorer.value)) >>
+  //         restorer.onRestore(restorer.value)
+  //     ).orUnit
+  //   )
+
+  def restore(restorerOpt: Option[Restorer2[F, M]]): F[Unit] =
+    restorerOpt
+      .map(restorer =>
+        model.mod(restorer.setter(restorer.value)) >>
+          restorer.onRestore(restorer.value) >>
+          stacks.zoom(UndoStacks2.working[F, M]).set(false)
+      )
+      .orUnit
 
   def set[A](
     getter:    M => A,
@@ -103,9 +135,9 @@ case class UndoContext[F[_]: Monad, M](stacks: ViewF[F, UndoStacks2[F, M]], mode
   )(f:         A => A): F[Unit] =
     set(getter, setter, onSet, onRestore)(f(getter(model.get)))
 
-  val undo: F[Unit] = restore(undoStack, redoStack)
+  val undo: F[Unit] = undoStacks >>= restore
 
-  val redo: F[Unit] = restore(redoStack, undoStack)
+  val redo: F[Unit] = redoStacks >>= restore
 }
 
 // case class UndoableAction[F[_], M](

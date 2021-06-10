@@ -19,6 +19,9 @@ import lucuma.core.model.ConstraintSet
 import monocle.Lens
 
 import ConstraintsQueriesGQL._
+import explore.undo.v2.UndoSetter
+import explore.undo.v2.UndoContext
+import explore.undo.UndoableView2
 
 object ConstraintsQueries {
   type ConstraintSetModel = ConstraintSetQuery.Data.ConstraintSet
@@ -26,10 +29,9 @@ object ConstraintsQueries {
 
   case class UndoView(
     id:           ConstraintSet.Id,
-    view:         View[ConstraintSetModel],
-    setter:       Undoer.Setter[IO, ConstraintSetModel]
+    undoCtx:      UndoContext[IO, ConstraintSetModel]
   )(implicit ctx: AppContextIO) {
-    private val undoableView = UndoableView(view, setter)
+    private val undoableView = UndoableView2(undoCtx)
 
     def apply[A](
       modelGet:  ConstraintSetModel => A,

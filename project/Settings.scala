@@ -12,7 +12,7 @@ object Settings {
     val circe             = "0.13.0"
     val circeGolden       = "0.3.0"
     val clue              = "0.15.1"
-    val crystal           = "0.13.0"
+    val crystal           = "0.14.1+0-52e99650+20210610-1648-SNAPSHOT"
     val discipline        = "1.1.4"
     val disciplineMUnit   = "1.0.8"
     val geminiLocales     = "0.6.0"

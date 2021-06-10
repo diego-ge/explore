@@ -15,10 +15,8 @@ final case class GetAdjust[T, A](getter: Getter[T, A], adjuster: Adjuster[T, A])
   def composeLens[B](lens: Lens[A, B]): GetAdjust[T, B] =
     GetAdjust(getter.composeLens(lens), adjuster.composeLens(lens))
 
-  // composing Getter with Prism returns a Fold. Ouch.
-  // def composePrism[B](lens: Prism[A, B]): GetAdjust[T, B] =
-  //   GetAdjust(getter.composePrism(lens), adjuster.composePrism(lens))
-
+  def composeGetAdjust[B](getAdjust: GetAdjust[A, B]): GetAdjust[T, B] =
+    GetAdjust(getter.composeGetter(getAdjust.getter), adjuster.composeAdjuster(getAdjust.adjuster))
 }
 object GetAdjust {
   def apply[T, A](lens: Lens[T, A]): GetAdjust[T, A] =
