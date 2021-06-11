@@ -57,6 +57,7 @@ import scala.concurrent.duration._
 final case class ObsTabContents(
   userId:           ViewOpt[User.Id],
   focused:          View[Option[Focused]],
+  undoStacks:       View[ModelUndoStacks[IO]],
   searching:        View[Set[Target.Id]],
   size:             ResizeDetector.Dimensions
 )(implicit val ctx: AppContextIO)
@@ -356,7 +357,10 @@ object ObsTabContents {
                                       state.zoom(State.options)
                 ),
                 ConstraintsTile
-                  .constraintsTile(obsId, obsView.map(_.zoom(ObservationData.constraintSet))),
+                  .constraintsTile(obsId,
+                                   obsView.map(_.zoom(ObservationData.constraintSet)),
+                                   props.undoStacks
+                  ),
                 ConfigurationTile.configurationTile(obsSummaryOpt.map(_.id))
               )
             ): VdomNode

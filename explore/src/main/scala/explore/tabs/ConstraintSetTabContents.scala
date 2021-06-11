@@ -35,14 +35,17 @@ import react.resizeDetector.ResizeDetector
 import react.semanticui.elements.button.Button
 import react.semanticui.elements.button.Button.ButtonProps
 import react.semanticui.sizes._
+import explore.optics._
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration._
+import explore.undo._
 
 final case class ConstraintSetTabContents(
-  userId:           ViewOpt[User.Id],
+  userId:           Option[User.Id],
   focused:          View[Option[Focused]],
   expandedIds:      View[SortedSet[ConstraintSet.Id]],
+  // undoStacks:       View[Map[ConstraintSet.Id, UndoStacks[IO, ConstraintSetData]]],
   size:             ResizeDetector.Dimensions
 )(implicit val ctx: AppContextIO)
     extends ReactProps[ConstraintSetTabContents](ConstraintSetTabContents.component) {
@@ -61,7 +64,7 @@ object ConstraintSetTabContents {
     $ : ComponentDidMount[Props, State, Unit]
   ): Callback = {
     implicit val ctx = $.props.ctx
-    (UserAreaWidths.queryWithDefault[IO]($.props.userId.get,
+    (UserAreaWidths.queryWithDefault[IO]($.props.userId,
                                          ResizableSection.ConstraintSetsTree,
                                          Constants.InitialTreeWidth.toInt
     ) >>= $.setStateLIn[IO](TwoPanelState.treeWidth)).runAsyncCB

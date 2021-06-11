@@ -20,6 +20,7 @@ import monocle.macros.Lenses
 import monocle.std.option
 
 import scala.collection.immutable.HashSet
+import cats.effect.IO
 
 @Lenses
 case class RootModel(
@@ -33,7 +34,8 @@ case class RootModel(
     Set("epoch", "pmra", "pmdec", "parallax", "morphology", "sed") ++
       MagnitudeBand.all
         .filterNot(_ === MagnitudeBand.V)
-        .map(b => (b.shortName + "mag"))
+        .map(b => (b.shortName + "mag")),
+  undoStacks:                 ModelUndoStacks[IO] = ModelUndoStacks[IO]()
 )
 
 object RootModel {
@@ -60,7 +62,8 @@ object RootModel {
        m.expandedIds,
        m.searchingTarget,
        m.userSelectionMessage,
-       m.targetSummaryHiddenColumns
+       m.targetSummaryHiddenColumns,
+       m.undoStacks
       )
     )
 }

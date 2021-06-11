@@ -42,13 +42,15 @@ import react.semanticui.elements.button.Button.ButtonProps
 import react.semanticui.sizes._
 
 import scala.concurrent.duration._
+import explore.undo._
 
 final case class TargetTabContents(
-  userId:           ViewOpt[User.Id],
+  userId:           Option[User.Id],
   focused:          View[Option[Focused]],
   searching:        View[Set[Target.Id]],
   expandedIds:      View[ExpandedIds],
   hiddenColumns:    View[Set[String]],
+  undoStacks:       View[UndoStacks2[IO, PointingsWithObs]],
   size:             ResizeDetector.Dimensions
 )(implicit val ctx: AppContextIO)
     extends ReactProps[TargetTabContents](TargetTabContents.component) {
@@ -65,7 +67,7 @@ object TargetTabContents {
 
   def readWidthPreference($ : ComponentDidMount[Props, State, Unit]): Callback = {
     implicit val ctx = $.props.ctx
-    (UserAreaWidths.queryWithDefault[IO]($.props.userId.get,
+    (UserAreaWidths.queryWithDefault[IO]($.props.userId,
                                          ResizableSection.TargetsTree,
                                          Constants.InitialTreeWidth.toInt
     ) >>= $.setStateLIn[IO](TwoPanelState.treeWidth)).runAsyncCB
@@ -90,7 +92,7 @@ object TargetTabContents {
       (_: ReactEvent, d: ResizeCallbackData) =>
         (state.zoom(TwoPanelState.treeWidth).set(d.size.width) *>
           UserWidthsCreation
-            .storeWidthPreference[IO](props.userId.get,
+            .storeWidthPreference[IO](props.userId,
                                       ResizableSection.TargetsTree,
                                       d.size.width
             )).runAsyncCB
@@ -110,7 +112,8 @@ object TargetTabContents {
           objectsWithObs,
           props.focused,
           props.expandedIds,
-          props.searching
+          props.searching,
+          props.undoStacks
         )
       )
 
@@ -137,7 +140,7 @@ object TargetTabContents {
     val coreHeight = props.size.height.getOrElse(0)
 
     val rightSide =
-      (props.userId.get, targetIdOpt).tupled match {
+      (props.userId, targetIdOpt).tupled match {
         case Some((uid, tid)) =>
           Tile("target", s"Target", backButton.some)(
             Reuse(renderContents _)(uid, tid, props.searching)

@@ -52,6 +52,7 @@ object Routing {
           model.zoom(RootModel.searchingTarget),
           model.zoom(RootModel.expandedIds),
           model.zoom(RootModel.targetSummaryHiddenColumns),
+          model.zoom(RootModel.undoStacks.composeLens(ModelUndoStacks.forTargetList)),
           size
         )
       )
@@ -62,6 +63,7 @@ object Routing {
       AppCtx.using(implicit ctx =>
         ObsTabContents(model.zoom(RootModel.userId),
                        model.zoom(RootModel.focused),
+                       model.zoom(RootModel.undoStacks),
                        model.zoom(RootModel.searchingTarget),
                        size
         )
@@ -77,6 +79,7 @@ object Routing {
           model.zoom(
             RootModel.expandedIds.composeLens(ExpandedIds.constraintSetIds)
           ),
+          // model.zoom(RootModel.undoStacks.composeLens(ModelUndoStacks.forConstraintSet)),
           size
         )
       )

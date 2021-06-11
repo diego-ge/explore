@@ -21,8 +21,9 @@ import react.common._
 object ConstraintsTile {
 
   def constraintsTile(
-    obsId: Observation.Id,
-    csPot: Pot[View[ConstraintSetData]]
+    obsId:      Observation.Id,
+    csPot:      Pot[View[ConstraintSetData]],
+    undoStacks: View[Map[ConstraintSet.Id, UndoStacks2[IO, ConstraintSetData]]]
   ): Tile =
     Tile(
       ObsTabTiles.ConstraintsId,
@@ -34,7 +35,7 @@ object ConstraintsTile {
           Reuse.always(cs =>
             <.div(
               ExploreStyles.ConstraintsObsTile,
-              ConstraintsPanel(obsId, cs, renderInTitle)
+              ConstraintsPanel(obsId, cs, undoStacks, renderInTitle)
             ): VdomNode
           )
         )(csPotViewPar)
