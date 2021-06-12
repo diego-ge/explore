@@ -50,7 +50,7 @@ final case class TargetTabContents(
   searching:        View[Set[Target.Id]],
   expandedIds:      View[ExpandedIds],
   hiddenColumns:    View[Set[String]],
-  undoStacks:       View[UndoStacks2[IO, PointingsWithObs]],
+  undoStacks:       View[UndoStacks[IO, PointingsWithObs]],
   size:             ResizeDetector.Dimensions
 )(implicit val ctx: AppContextIO)
     extends ReactProps[TargetTabContents](TargetTabContents.component) {

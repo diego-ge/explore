@@ -9,7 +9,6 @@ import lucuma.core.model.Asterism
 import lucuma.core.model.Observation
 import lucuma.core.model.Target
 import monocle.Iso
-import cats.data.NonEmptyList
 
 sealed trait Page extends Product with Serializable
 
@@ -25,8 +24,7 @@ object Page {
   final case class TargetsObsPage(obsId: Observation.Id) extends Page
   case object ConfigurationsPage         extends Page
   final case object ConstraintsBasePage  extends Page
-  final case class ConstraintsPage(obsIds: NonEmptyList[Observation.Id]) extends Page
-  final case class ConstraintsObsPage(obsId: Observation.Id) extends Page
+  final case class ConstraintsPage(obsIds: Observation.Id) extends Page
 
   implicit val eqPage: Eq[Page] = Eq.instance {
     case (HomePage, HomePage)                             => true
@@ -41,7 +39,6 @@ object Page {
     case (ConfigurationsPage, ConfigurationsPage)         => true
     case (ConstraintsBasePage, ConstraintsBasePage)       => true
     case (ConstraintsPage(a), ConstraintsPage(b))         => a === b
-    case (ConstraintsObsPage(a), ConstraintsObsPage(b))   => a === b
     case _                                                => false
   }
 
@@ -71,12 +68,7 @@ object Page {
   }
 
   object ConstraintsPage {
-    final val csId: Iso[NonEmptyList[Observation.Id], ConstraintsPage] =
-      Iso[NonEmptyList[Observation.Id], ConstraintsPage](ConstraintsPage.apply)(_.obsIds)
-  }
-
-  object ConstraintsObsPage {
-    final val obsId: Iso[Observation.Id, ConstraintsObsPage] =
-      Iso[Observation.Id, ConstraintsObsPage](ConstraintsObsPage.apply)(_.obsId)
+    final val obsId: Iso[Observation.Id, ConstraintsPage] =
+      Iso[Observation.Id, ConstraintsPage](ConstraintsPage.apply)(_.obsIds)
   }
 }

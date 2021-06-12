@@ -15,7 +15,6 @@ import explore.components.HelpIcon
 import explore.components.Tile
 import explore.components.ui.ExploreStyles
 import explore.components.undo.UndoButtons
-import explore.components.undo.UndoRegion
 import explore.implicits._
 import explore.model.ImagingConfigurationOptions
 import explore.model.SpectroscopyConfigurationOptions
@@ -23,7 +22,6 @@ import explore.model.enum.ConfigurationMode
 import explore.model.enum.FocalPlaneOptions
 import explore.model.enum.SpectroscopyCapabilities
 import explore.undo.UndoableView
-import explore.undo.Undoer
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.feature.ReactFragment
 import japgolly.scalajs.react.vdom.html_<^._

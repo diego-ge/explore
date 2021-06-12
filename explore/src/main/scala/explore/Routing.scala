@@ -47,7 +47,7 @@ object Routing {
     withSize { size =>
       AppCtx.using(implicit ctx =>
         TargetTabContents(
-          model.zoom(RootModel.userId),
+          model.zoom(RootModel.userId).get,
           model.zoom(RootModel.focused),
           model.zoom(RootModel.searchingTarget),
           model.zoom(RootModel.expandedIds),
@@ -74,7 +74,7 @@ object Routing {
     withSize(size =>
       AppCtx.using(implicit ctx =>
         ConstraintSetTabContents(
-          model.zoom(RootModel.userId),
+          model.zoom(RootModel.userId).get,
           model.zoom(RootModel.focused),
           model.zoom(
             RootModel.expandedIds.composeLens(ExpandedIds.constraintSetIds)
@@ -122,10 +122,7 @@ object Routing {
           | staticRoute("/configurations", ConfigurationsPage) ~> render(SequenceEditor())
           | staticRoute("/constraints", ConstraintsBasePage) ~> renderP(constraintSetTab)
           | dynamicRouteCT(
-            ("/constraint" / id[ConstraintSet.Id]).xmapL(ConstraintsPage.csId)
-          ) ~> renderP(constraintSetTab)
-          | dynamicRouteCT(
-            ("/constraint/obs" / id[Observation.Id]).xmapL(ConstraintsObsPage.obsId)
+            ("/constraint" / id[Observation.Id]).xmapL(ConstraintsPage.obsId)
           ) ~> renderP(constraintSetTab))
 
       val configuration =

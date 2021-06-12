@@ -16,7 +16,7 @@ import react.common.ReactProps
 import react.semanticui.elements.button._
 import react.semanticui.sizes._
 
-final case class UndoButtons2[F[_], A](
+final case class UndoButtons[F[_], A](
   undoCtx:        UndoContext[F, A],
   size:           SemanticSize = Tiny,
   disabled:       Boolean = false
@@ -24,10 +24,10 @@ final case class UndoButtons2[F[_], A](
   val F:          MonadError[F, Throwable],
   val dispatcher: Dispatcher[F],
   val logger:     Logger[F]
-) extends ReactProps[UndoButtons2[Any, Any]](UndoButtons2.component)
+) extends ReactProps[UndoButtons[Any, Any]](UndoButtons.component)
 
-object UndoButtons2 {
-  type Props[F[_], A] = UndoButtons2[F, A]
+object UndoButtons {
+  type Props[F[_], A] = UndoButtons[F, A]
 
   protected def componentBuilder[F[_], A] =
     ScalaComponent
