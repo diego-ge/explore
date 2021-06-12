@@ -73,7 +73,8 @@ case class UndoContext[F[_]: Monad, M](stacks: ViewF[F, UndoStacks[F, M]], model
       ss.undo match {
         // HERE on head.onModel(model.get) Sometimes obtaining wrong value!!!!
         case head :: tail =>
-          (UndoStacks(tail, head.onModel(model.get) +: ss.redo, true), head.some)
+          // (UndoStacks(tail, head.onModel(model.get) +: ss.redo, true), head.some)
+          (UndoStacks(tail, head.onModel(model.get) +: ss.redo, false), head.some)
         case _            => (ss, none)
       }
     )
@@ -82,7 +83,8 @@ case class UndoContext[F[_]: Monad, M](stacks: ViewF[F, UndoStacks[F, M]], model
     stacks.modAndExtract(ss =>
       ss.redo match {
         case head :: tail =>
-          (UndoStacks(head.onModel(model.get) +: ss.undo, tail, true), head.some)
+          // (UndoStacks(head.onModel(model.get) +: ss.undo, tail, true), head.some)
+          (UndoStacks(head.onModel(model.get) +: ss.undo, tail, false), head.some)
         case _            => (ss, none)
       }
     )
@@ -113,8 +115,8 @@ case class UndoContext[F[_]: Monad, M](stacks: ViewF[F, UndoStacks[F, M]], model
     restorerOpt
       .map(restorer =>
         model.mod(restorer.setter(restorer.value)) >>
-          restorer.onRestore(restorer.value) >>
-          stacks.zoom(UndoStacks.working[F, M]).set(false)
+          restorer.onRestore(restorer.value) // >>
+      // stacks.zoom(UndoStacks.working[F, M]).set(false)
       )
       .orUnit
 
