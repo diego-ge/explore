@@ -26,7 +26,7 @@ case class UndoableView[F[_]: Async, T](
     val zoomed = undoCtx.model.zoom(get)(mod)
     ViewF[F, A](
       zoomed.get,
-      undoCtx.mod[A](get, (a: A) => mod(_ => a), onChange)
+      undoCtx.mod[A](get, (a: A) => mod(_ => a), a => onChange(a))
     )
   }
 

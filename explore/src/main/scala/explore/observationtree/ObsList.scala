@@ -64,58 +64,32 @@ object ObsList {
     )
 
   class Backend($ : BackendScope[Props, Unit]) {
-
     def createObservation[F[_]](obsId: Observation.Id)(implicit
       F:                               ApplicativeError[F, Throwable],
       c:                               TransactionalClient[F, ObservationDB]
     ): F[Unit] =
       ProgramCreateObservation
         .execute[F](
-          CreateObservationInput(programId = "p-2",
-                                 observationId = obsId.assign
-                                 //  name = name.orIgnore
-          )
+          CreateObservationInput(programId = "p-2", observationId = obsId.assign)
         )
         .void
-        .handleErrorWith { _ =>
-          ProgramUndeleteObservation.execute(obsId).void
-        }
 
     def deleteObservation[F[_]: Applicative](id: Observation.Id)(implicit
       c:                                         TransactionalClient[F, ObservationDB]
     ): F[Unit] =
       ProgramDeleteObservation.execute[F](id).void
 
-    // private def setObsWithIndex(
-    //   observations:       View[ObservationList],
-    //   focused:            View[Option[Focused]],
-    //   obsId:              Observation.Id,
-    //   obsWithIndexSetter: Adjuster[ObservationList, obsListMod.ElemWithIndex],
-    //   nextToFocus:        Option[ObsSummaryWithPointingAndConstraints]
-    // )(implicit
-    //   c:                  TransactionalClient[IO, ObservationDB]
-    // ): obsListMod.ElemWithIndex => IO[Unit] =
-    //   obsWithIndex =>
-    //     // 1) Update internal model
-    //     observations
-    //       .mod(obsWithIndexSetter.set(obsWithIndex)) >>
-    //       // 2) Send mutation & adjust focus
-    //       obsWithIndex.fold(
-    //         focused.set(nextToFocus.map(f => Focused.FocusedObs(f.id))) >>
-    //           deleteObservation[IO](obsId)
-    //       ) { case (obs, _) =>
-    //         createObservation[IO](obs.id) >>
-    //           focused.set(Focused.FocusedObs(obs.id).some)
-    //       }
+    def undeleteObservation[F[_]: Applicative](id: Observation.Id)(implicit
+      c:                                           TransactionalClient[F, ObservationDB]
+    ): F[Unit] =
+      ProgramUndeleteObservation.execute[F](id).void
 
     private def obsMod(
-      setter:        UndoSetter[IO, ObservationList],
-      // observations:  View[ObservationList],
-      focused:       View[Option[Focused]],
-      obsId:         Observation.Id,
-      focusOnDelete: Option[ObsSummaryWithPointingAndConstraints]
+      setter:  UndoSetter[IO, ObservationList],
+      focused: View[Option[Focused]],
+      obsId:   Observation.Id
     )(implicit
-      c:             TransactionalClient[IO, ObservationDB]
+      c:       TransactionalClient[IO, ObservationDB]
     ): obsListMod.Operation => IO[Unit] = {
       val obsWithId: GetAdjust[ObservationList, obsListMod.ElemWithIndex] =
         obsListMod.withKey(obsId)
@@ -124,14 +98,18 @@ object ObsList {
         .mod[obsListMod.ElemWithIndex](
           obsWithId.getter.get,
           obsWithId.adjuster.set,
-          _.fold(
-            focused.set(focusOnDelete.map(f => Focused.FocusedObs(f.id))) >>
-              deleteObservation[IO](obsId)
-          ) { case (obs, _) =>
+          onSet = (_: obsListMod.ElemWithIndex).fold {
+            deleteObservation[IO](obsId)
+          } { case (obs, _) =>
             createObservation[IO](obs.id) >>
               focused.set(Focused.FocusedObs(obs.id).some)
+          },
+          onRestore = (_: obsListMod.ElemWithIndex).fold {
+            deleteObservation[IO](obsId)
+          } { case (obs, _) =>
+            undeleteObservation[IO](obs.id) >>
+              focused.set(Focused.FocusedObs(obs.id).some)
           }
-          // setObsWithIndex(observations, focused, obsId, obsWithId.adjuster, focusOnDelete)
         )
     }
 
@@ -148,7 +126,7 @@ object ObsList {
 
       $.propsIn[IO] >>= { props =>
         newObs >>= { obs =>
-          val mod = obsMod(setter, props.focused, obs.id, none)
+          val mod = obsMod(setter, props.focused, obs.id)
           mod(obsListMod.upsert(obs, props.observations.get.length))
         }
       }
@@ -156,19 +134,11 @@ object ObsList {
 
     def render(props: Props): VdomNode =
       AppCtx.using { implicit ctx =>
-        val undoCtx       = UndoContext(props.undoStacks, props.observations)
-        val focused       = props.focused.get
-        val observations  = props.observations.get.toList
-        val someSelected  = focused.isDefined
-        val obsWithIdx    = observations.zipWithIndex
-        val obsId         = focused.collect { case FocusedObs(id) => id }
-        val obsIdx        = obsWithIdx.find(i => obsId.forall(_ === i._1.id)).foldMap(_._2)
-        val nextToSelect  = obsWithIdx.find(_._2 === obsIdx + 1).map(_._1)
-        val prevToSelect  = obsWithIdx.find(_._2 === obsIdx - 1).map(_._1)
-        val focusOnDelete = nextToSelect.orElse(prevToSelect).filter(_ => someSelected)
+        val undoCtx      = UndoContext(props.undoStacks, props.observations)
+        val observations = props.observations.get.toList
 
         def deleteObs(obsId: Observation.Id): IO[Unit] = {
-          val mod = obsMod(undoCtx, props.focused, obsId, focusOnDelete)
+          val mod = obsMod(undoCtx, props.focused, obsId) //, focusOnDelete)
           mod(obsListMod.delete)
         }
 
@@ -221,20 +191,38 @@ object ObsList {
       .renderBackend[Backend]
       .componentDidMount { $ =>
         implicit val ctx = $.props.ctx
+
         val observations = $.props.observations.get
 
-        // Unfocus if focused element is not in list.
+        // If focused observation does not exist anymore, then unfocus.
         val unfocus =
-          $.props.focused.get.map { focused =>
-            $.props.focused
-              .set(none)
-              .whenA(focused match {
-                case FocusedObs(oid) => !observations.contains(oid)
-                case _               => true // If focused on something else, unfocus too.
-              })
-          }.orEmpty
+          $.props.focused.mod(_.flatMap {
+            case FocusedObs(oid) if !observations.contains(oid) => none
+            case other                                          => other.some
+          })
 
         unfocus.runAsyncAndForgetCB
+      }
+      .componentDidUpdate { $ =>
+        implicit val ctx = $.currentProps.ctx
+
+        val prevObservations = $.prevProps.observations.get
+        val observations     = $.currentProps.observations.get
+
+        // If focused observation does not exist anymore, then focus on closest one.
+        val refocus =
+          $.currentProps.focused.mod(_.flatMap {
+            case FocusedObs(oid) if !observations.contains(oid) =>
+              prevObservations
+                .getIndex(oid)
+                .flatMap { idx =>
+                  observations.toList.get(math.min(idx, observations.length - 1).toLong)
+                }
+                .map(newObs => FocusedObs(newObs.id))
+            case other                                          => other.some
+          })
+
+        refocus.runAsyncAndForgetCB
       }
       .configure(Reusability.shouldComponentUpdate)
       .build

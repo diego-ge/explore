@@ -195,9 +195,10 @@ object TargetObsList {
                       .set[Option[Option[PointingId]]](
                         getAdjust.get,
                         getAdjust.set,
-                        (_: Option[Option[PointingId]])
-                          .map(newPointingId => moveObs(obsId, newPointingId))
-                          .orEmpty
+                        (_: PointingsWithObs, elem: Option[Option[PointingId]]) =>
+                          elem
+                            .map(newPointingId => moveObs(obsId, newPointingId))
+                            .orEmpty
                       )
 
                   destination.droppableId match {
@@ -258,18 +259,22 @@ object TargetObsList {
         .mod[targetListMod.ElemWithIndex](
           getAdjust.get,
           getAdjust.set,
-          onSet = _.fold(
-            focused.set(focusOnDelete.map(f => Focused.FocusedTarget(f.id))) >>
-              deleteTarget(targetId)
-          ) { case (target, _) =>
-            insertTarget(target) >> focused.set(FocusedTarget(targetId).some)
-          },
-          onRestore = (_: targetListMod.ElemWithIndex).fold(
-            focused.set(focusOnDelete.map(f => Focused.FocusedTarget(f.id))) >>
-              deleteTarget(targetId)
-          ) { case (target, _) =>
-            undeleteTarget(target.id) >> focused.set(FocusedTarget(target.id).some)
-          }
+          onSet =
+            (pointingsWithObs: PointingsWithObs, elemWithIndex: targetListMod.ElemWithIndex) =>
+              elemWithIndex.fold(
+                focused.set(focusOnDelete.map(f => Focused.FocusedTarget(f.id))) >>
+                  deleteTarget(targetId)
+              ) { case (target, _) =>
+                insertTarget(target) >> focused.set(FocusedTarget(targetId).some)
+              },
+          onRestore =
+            (pointingsWithObs: PointingsWithObs, elemWithIndex: targetListMod.ElemWithIndex) =>
+              elemWithIndex.fold(
+                focused.set(focusOnDelete.map(f => Focused.FocusedTarget(f.id))) >>
+                  deleteTarget(targetId)
+              ) { case (target, _) =>
+                undeleteTarget(target.id) >> focused.set(FocusedTarget(target.id).some)
+              }
         )
     }
 
@@ -367,18 +372,22 @@ object TargetObsList {
         .mod[asterismListMod.ElemWithIndex](
           getAdjust.get,
           getAdjust.set,
-          onSet = _.fold(
-            focused.set(focusOnDelete.map(f => FocusedAsterism(f.id))) >>
-              deleteAsterism(asterismId)
-          ) { case (asterism, _) =>
-            insertAsterism(asterism) >> focused.set(FocusedAsterism(asterism.id).some)
-          },
-          onRestore = (_: asterismListMod.ElemWithIndex).fold(
-            focused.set(focusOnDelete.map(f => FocusedAsterism(f.id))) >>
-              deleteAsterism(asterismId)
-          ) { case (asterism, _) =>
-            undeleteAsterism(asterism.id) >> focused.set(FocusedAsterism(asterism.id).some)
-          }
+          onSet =
+            (pointingsWithObs: PointingsWithObs, elemWithIndex: asterismListMod.ElemWithIndex) =>
+              elemWithIndex.fold(
+                focused.set(focusOnDelete.map(f => FocusedAsterism(f.id))) >>
+                  deleteAsterism(asterismId)
+              ) { case (asterism, _) =>
+                insertAsterism(asterism) >> focused.set(FocusedAsterism(asterism.id).some)
+              },
+          onRestore =
+            (pointingsWithObs: PointingsWithObs, elemWithIndex: asterismListMod.ElemWithIndex) =>
+              elemWithIndex.fold(
+                focused.set(focusOnDelete.map(f => FocusedAsterism(f.id))) >>
+                  deleteAsterism(asterismId)
+              ) { case (asterism, _) =>
+                undeleteAsterism(asterism.id) >> focused.set(FocusedAsterism(asterism.id).some)
+              }
         )
 
     }
@@ -411,11 +420,15 @@ object TargetObsList {
         .mod[asterismTargetListMod.ElemWithIndex](
           getter.get,
           adjuster.set,
-          _.fold(
-            unshareTargetWithAsterism(targetId, asterismId)
-          ) { case (target, _) =>
-            shareTargetWithAsterism(target.id, asterismId)
-          }
+          (
+            pointingsWithObs: PointingsWithObs,
+            elemWithIndex:    asterismTargetListMod.ElemWithIndex
+          ) =>
+            elemWithIndex.fold(
+              unshareTargetWithAsterism(targetId, asterismId)
+            ) { case (target, _) =>
+              shareTargetWithAsterism(target.id, asterismId)
+            }
         )
     }
 

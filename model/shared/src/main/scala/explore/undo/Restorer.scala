@@ -16,7 +16,7 @@ sealed trait Restorer[F[_], M] { // M = (Local) Model
   val getter: M => T // How to refresh the value from the model. Used when going from undo=>redo or viceversa.
   val setter: T => M => M
 
-  val onRestore: T => F[Unit]
+  val onRestore: (M, T) => F[Unit]
 
   // def restore: F[Unit] = onChange(value)
 
@@ -31,7 +31,7 @@ object Restorer {
     m:          M,
     _getter:    M => A,
     _setter:    A => M => M,
-    _onRestore: A => F[Unit]
+    _onRestore: (M, A) => F[Unit]
   )(implicit
     ff:         Functor[F]
   ): Restorer[F, M] =

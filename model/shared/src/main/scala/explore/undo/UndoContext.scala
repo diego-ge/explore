@@ -4,51 +4,65 @@ import cats.syntax.all._
 import crystal.ViewF
 import cats.Monad
 import crystal.implicits._
-import monocle.Lens
-// import cats.effect.Concurrent
-// import cats.effect.implicits._
 
 trait UndoSetter[F[_], M] {
   def set[A](
     getter:    M => A,
     setter:    A => M => M,
-    onSet:     A => F[Unit],
-    onRestore: A => F[Unit]
+    onSet:     (M, A) => F[Unit],
+    onRestore: (M, A) => F[Unit]
   )(v:         A): F[Unit]
 
   def set[A](
-    getter: M => A,
-    setter: A => M => M,
-    onSet:  A => F[Unit]
-  )(v:      A): F[Unit] =
-    set(getter, setter, onSet, onSet)(v)
-
-  def set[A](
-    lens:      Lens[M, A],
+    getter:    M => A,
+    setter:    A => M => M,
     onSet:     A => F[Unit],
     onRestore: A => F[Unit]
   )(v:         A): F[Unit] =
-    set(lens.get _, lens.set _, onSet, onRestore)(v)
+    set(getter, setter, (_: M, a: A) => onSet(a), (_: M, a: A) => onRestore(a))(v)
 
   def set[A](
-    lens:  Lens[M, A],
-    onSet: A => F[Unit]
-  )(v:     A): F[Unit] =
-    set(lens, onSet, onSet)(v)
+    getter:    M => A,
+    setter:    A => M => M,
+    onSet:     (M, A) => F[Unit]
+  )(v:         A): F[Unit] =
+    set(getter, setter, onSet, onSet)(v)
+
+  def set[A](
+    getter:    M => A,
+    setter:    A => M => M,
+    onSet:     A => F[Unit]
+  )(v:         A): F[Unit] =
+    set(getter, setter, (_: M, a: A) => onSet(a))(v)
+
+  def mod[A](
+    getter:    M => A,
+    setter:    A => M => M,
+    onSet:     (M, A) => F[Unit],
+    onRestore: (M, A) => F[Unit]
+  )(f:         A => A): F[Unit]
 
   def mod[A](
     getter:    M => A,
     setter:    A => M => M,
     onSet:     A => F[Unit],
     onRestore: A => F[Unit]
-  )(f:         A => A): F[Unit]
+  )(f:         A => A): F[Unit] =
+    mod(getter, setter, (_: M, a: A) => onSet(a), (_: M, a: A) => onRestore(a))(f)
+
+  def mod[A](
+    getter:    M => A,
+    setter:    A => M => M,
+    onSet:     (M, A) => F[Unit]
+  )(f:         A => A): F[Unit] =
+    mod(getter, setter, onSet, onSet)(f)
 
   def mod[A](
     getter: M => A,
     setter: A => M => M,
     onSet:  A => F[Unit]
   )(f:      A => A): F[Unit] =
-    mod(getter, setter, onSet, onSet)(f)
+    mod(getter, setter, (_: M, a: A) => onSet(a))(f)
 }
 
 case class UndoContext[F[_]: Monad, M](stacks: ViewF[F, UndoStacks[F, M]], model: ViewF[F, M])
@@ -115,7 +129,7 @@ case class UndoContext[F[_]: Monad, M](stacks: ViewF[F, UndoStacks[F, M]], model
     restorerOpt
       .map(restorer =>
         model.mod(restorer.setter(restorer.value)) >>
-          restorer.onRestore(restorer.value) // >>
+          restorer.onRestore(model.get, restorer.value) // >>
       // stacks.zoom(UndoStacks.working[F, M]).set(false)
       )
       .orUnit
@@ -123,21 +137,21 @@ case class UndoContext[F[_]: Monad, M](stacks: ViewF[F, UndoStacks[F, M]], model
   def set[A](
     getter:    M => A,
     setter:    A => M => M,
-    onSet:     A => F[Unit],
-    onRestore: A => F[Unit]
+    onSet:     (M, A) => F[Unit],
+    onRestore: (M, A) => F[Unit]
   )(v:         A): F[Unit] =
     for {
       _ <- push(undoStack)(Restorer[F, M, A](model.get, getter, setter, onRestore))
       _ <- reset(redoStack)
       _ <- model.mod.compose(setter)(v)
-      _ <- onSet(v)
+      _ <- onSet(model.get, v)
     } yield ()
 
   def mod[A](
     getter:    M => A,
     setter:    A => M => M,
-    onSet:     A => F[Unit],
-    onRestore: A => F[Unit]
+    onSet:     (M, A) => F[Unit],
+    onRestore: (M, A) => F[Unit]
   )(f:         A => A): F[Unit] =
     set(getter, setter, onSet, onRestore)(f(getter(model.get)))
 
