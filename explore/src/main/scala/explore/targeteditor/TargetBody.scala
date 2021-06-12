@@ -73,7 +73,7 @@ object TargetBody {
   type Props = TargetBody
   val AladinRef = AladinCell.component
 
-  implicit val propsReuse = Reusability.derive[Props]
+  implicit val propsReuse: Reusability[Props] = Reusability.derive
 
   class Backend() {
     def render(props: Props) =

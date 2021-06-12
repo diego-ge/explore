@@ -19,6 +19,7 @@ import lucuma.core.model.Observation
 import lucuma.ui.reusability._
 import react.common._
 import cats.effect.IO
+import explore.model.reusability._
 
 object ConstraintsTile {
 
@@ -32,15 +33,15 @@ object ConstraintsTile {
       "Constraints",
       canMinimize = true
     )(
-      csPot.curryReusing.in((csPotViewPar, renderInTitle) =>
+      (csPot, undoStacks).curryReusing.in((csPotView_, undoStacks_, renderInTitle) =>
         potRender[View[ConstraintSetData]](
           Reuse.always(cs =>
             <.div(
               ExploreStyles.ConstraintsObsTile,
-              ConstraintsPanel(obsId, cs, undoStacks, renderInTitle)
+              ConstraintsPanel(obsId, cs, undoStacks_, renderInTitle)
             ): VdomNode
           )
-        )(csPotViewPar)
+        )(csPotView_)
       )
     )
 

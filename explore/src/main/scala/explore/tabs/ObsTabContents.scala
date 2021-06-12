@@ -338,6 +338,7 @@ object ObsTabContents {
              layouts,
              notesTile,
              targetId,
+             props.undoStacks,
              props.searching,
              state.zoom(State.options)
             )
