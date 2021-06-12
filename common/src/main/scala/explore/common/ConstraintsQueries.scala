@@ -15,18 +15,18 @@ import explore.model.ElevationRange
 import explore.model.HourAngleRange
 import explore.schemas.ObservationDB.Types._
 import explore.undo.UndoableView
-import explore.undo.Undoer
+// import explore.undo.Undoer
 import lucuma.core.enum._
 import lucuma.core.model.Observation
 import monocle.Lens
+import explore.undo.UndoContext
 
 object ConstraintsQueries {
   case class UndoView(
     obsId:        Observation.Id,
-    view:         View[ConstraintSetData],
-    setter:       Undoer.Setter[IO, ConstraintSetData]
+    undoCtx:      UndoContext[IO, ConstraintSetData]
   )(implicit ctx: AppContextIO) {
-    private val undoableView = UndoableView(view, setter)
+    private val undoableView = UndoableView(undoCtx)
 
     def apply[A](
       modelGet:  ConstraintSetData => A,
