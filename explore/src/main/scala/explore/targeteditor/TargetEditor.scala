@@ -52,9 +52,8 @@ object TargetEditor {
 
   protected class Backend($ : BackendScope[Props, State]) {
     def render(props: Props) = {
-      println("IN TARGET EDITOR")
-
       implicit val ctx = props.ctx
+
       LiveQueryRenderMod[ObservationDB, TargetEditQuery.Data, Option[TargetEditQuery.Data.Target]](
         TargetEditQuery.query(props.tid).reuseAlways,
         (TargetEditQuery.Data.target.get _).reuseAlways,
