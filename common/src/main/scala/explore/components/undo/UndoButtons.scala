@@ -43,7 +43,7 @@ object UndoButtons {
             Button(
               onClick = p.undoCtx.undo.runAsyncCB,
               size = p.size,
-              disabled = p.undoCtx.isUndoEmpty || p.disabled,
+              disabled = p.undoCtx.isUndoEmpty || p.disabled || p.undoCtx.working,
               loading = p.undoCtx.working,
               clazz = ExploreStyles.VeryCompact,
               icon = Icons.Undo,
@@ -53,7 +53,7 @@ object UndoButtons {
             Button(
               onClick = p.undoCtx.redo.runAsyncCB,
               size = p.size,
-              disabled = p.undoCtx.isRedoEmpty || p.disabled,
+              disabled = p.undoCtx.isRedoEmpty || p.disabled || p.undoCtx.working,
               loading = p.undoCtx.working,
               clazz = ExploreStyles.VeryCompact,
               icon = Icons.Redo,

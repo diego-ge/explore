@@ -9,7 +9,6 @@ case class UndoStacks[F[_], M](
   redo:    UndoStack[F, M],
   working: Boolean
 )
-
 object UndoStacks {
   def empty[F[_], M]: UndoStacks[F, M] =
     UndoStacks(List.empty[Restorer[F, M]], List.empty[Restorer[F, M]], false)

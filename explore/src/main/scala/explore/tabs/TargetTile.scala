@@ -40,13 +40,14 @@ object TargetTile {
       targetOpt:     View[Option[TargetEditQuery.Data.Target]]
     ): VdomNode =
       (userId, targetOpt.get).mapN { case (uid, _) =>
-        TargetBody(uid,
-                   targetId,
-                   targetOpt.zoom(_.get)(f => _.map(f)),
-                   undoStacks.zoom(unsafeAtMap(targetId)),
-                   searching,
-                   targetViewOptions,
-                   renderInTitle
+        TargetBody(
+          uid,
+          targetId,
+          targetOpt.zoom(_.get)(f => _.map(f)),
+          undoStacks.zoom(atMapWithDefault(targetId, UndoStacks.empty)),
+          searching,
+          targetViewOptions,
+          renderInTitle
         )
       }
 

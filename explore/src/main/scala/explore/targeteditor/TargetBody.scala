@@ -256,9 +256,9 @@ object TargetBody {
               RVInput(radialVelocityView, disabled)
             ),
             MagnitudeForm(target.id, magnitudesView, disabled = disabled),
-            // props.renderInTitle(
-            //   <.span(ExploreStyles.TitleStrip, UndoButtons(undoCtx, disabled = disabled))
-            // ),
+            props.renderInTitle(
+              <.span(ExploreStyles.TitleStrip, UndoButtons(undoCtx, disabled = disabled))
+            ),
             <.div(
               ExploreStyles.TargetSkyplotCell,
               WIP(

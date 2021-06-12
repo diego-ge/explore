@@ -54,6 +54,7 @@ import react.semanticui.sizes._
 import explore.optics._
 
 import scala.concurrent.duration._
+import explore.undo.UndoStacks
 
 final case class ObsTabContents(
   userId:           ViewOpt[User.Id],
@@ -366,7 +367,7 @@ object ObsTabContents {
                     obsView.map(_.zoom(ObservationData.constraintSet)),
                     props.undoStacks
                       .zoom(ModelUndoStacks.forConstraintSet[IO])
-                      .zoom(unsafeAtMap(obsId))
+                      .zoom(atMapWithDefault(obsId, UndoStacks.empty))
                   ),
                 ConfigurationTile.configurationTile(obsSummaryOpt.map(_.id))
               )

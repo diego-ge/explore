@@ -166,8 +166,10 @@ package object optics {
   def optionIso[A, B](iso: Iso[A, B]): Iso[Option[A], Option[B]] =
     Iso[Option[A], Option[B]](_.map(iso.get))(_.map(iso.reverseGet))
 
-  def unsafeGet[A]: Lens[Option[A], A] = Lens[Option[A], A](_.get)(a => _ => a.some)
+  def getWithDefault[A](default: => A): Lens[Option[A], A] =
+    Lens[Option[A], A](_.getOrElse(default))(a => _ => a.some)
 
   // This should be safe to use with Maps that have .withDefault(...)
-  def unsafeAtMap[K, V](k: K): Lens[Map[K, V], V] = atMap.at(k).composeLens(unsafeGet)
+  def atMapWithDefault[K, V](k: K, default: => V): Lens[Map[K, V], V] =
+    atMap.at(k).composeLens(getWithDefault(default))
 }

@@ -146,15 +146,11 @@ object TargetTabContents {
     val rightSide =
       (props.userId, targetIdOpt).tupled match {
         case Some((uid, tid)) =>
-          println(props.targetsUndoStacks.get)
-          println(props.targetsUndoStacks.get(tid))
-
           Tile("target", s"Target", backButton.some)(
             Reuse(renderContents _)(
               uid,
               tid,
-              // props.targetsUndoStacks.zoom(unsafeAtMap(tid)),
-              ViewF[IO, UndoStacks[IO, TargetResult]](UndoStacks.empty, _ => IO.unit),
+              props.targetsUndoStacks.zoom(atMapWithDefault(tid, UndoStacks.empty)),
               props.searching
             )
           )
