@@ -7,7 +7,6 @@ import cats.effect.IO
 import cats.syntax.all._
 import crystal.ViewF
 import crystal.react.implicits._
-import crystal.react.reuse._
 import eu.timepit.refined.auto._
 import eu.timepit.refined.cats._
 import eu.timepit.refined.types.string.NonEmptyString
@@ -49,7 +48,7 @@ import react.semanticui.elements.label.LabelPointing
 final case class ConstraintsPanel(
   obsId:         Observation.Id,
   constraintSet: View[ConstraintSetData],
-  undoStacks:    View[UndoStacks2[IO, ConstraintSetModel]],
+  undoStacks:    View[UndoStacks[IO, ConstraintSetData]],
   renderInTitle: Tile.RenderInTitle
 ) extends ReactProps[ConstraintsPanel](ConstraintsPanel.component)
 
@@ -112,9 +111,9 @@ object ConstraintsPanel {
       state:        View[State],
       undoCtx:      UndoContext[IO, ConstraintSetData]
     )(implicit ctx: AppContextIO): VdomNode = {
-      val constraintSet = props.constraintSet
+      // val constraintSet = props.constraintSet
 
-      val undoViewSet = UndoView(props.id, undoCtx)
+      val undoViewSet = UndoView(props.obsId, undoCtx)
 
       def nameView = undoViewSet(ConstraintSetData.name, UpdateConstraintSet.name)
       def erView   =

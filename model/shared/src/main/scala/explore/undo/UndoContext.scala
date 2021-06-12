@@ -64,6 +64,10 @@ case class UndoContext[F[_]: Monad, M](stacks: ViewF[F, UndoStacks[F, M]], model
   private def push(stack: ViewF[F, UndoStack[F, M]]): Restorer[F, M] => F[Unit] =
     restorer => stack.mod(s => restorer +: s)
 
+  // Try doing both state updates with .start and removing the working mechanism
+  // We have to reorganize things.
+  // Move stack reorganizing logic to UndoStacks, produce the new stacks but don't modify until here.
+
   private def undoStacks: F[Option[Restorer[F, M]]] =
     stacks.modAndExtract(ss =>
       ss.undo match {

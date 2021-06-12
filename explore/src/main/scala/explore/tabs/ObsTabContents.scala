@@ -51,6 +51,7 @@ import react.resizeDetector.ResizeDetector
 import react.semanticui.elements.button.Button
 import react.semanticui.elements.button.Button.ButtonProps
 import react.semanticui.sizes._
+import explore.optics._
 
 import scala.concurrent.duration._
 
@@ -257,7 +258,8 @@ object ObsTabContents {
         <.div(ExploreStyles.TreeBody)(
           ObsList(
             observations,
-            props.focused
+            props.focused,
+            props.undoStacks.zoom(ModelUndoStacks.forObsList)
           )
         )
 
@@ -351,15 +353,20 @@ object ObsTabContents {
               layouts,
               List(
                 notesTile,
-                TargetTile.targetTile(props.userId.get,
-                                      targetId,
-                                      props.searching,
-                                      state.zoom(State.options)
+                TargetTile.targetTile(
+                  props.userId.get,
+                  targetId,
+                  props.undoStacks.zoom(ModelUndoStacks.forTarget),
+                  props.searching,
+                  state.zoom(State.options)
                 ),
                 ConstraintsTile
-                  .constraintsTile(obsId,
-                                   obsView.map(_.zoom(ObservationData.constraintSet)),
-                                   props.undoStacks
+                  .constraintsTile(
+                    obsId,
+                    obsView.map(_.zoom(ObservationData.constraintSet)),
+                    props.undoStacks
+                      .zoom(ModelUndoStacks.forConstraintSet[IO])
+                      .zoom(unsafeAtMap(obsId))
                   ),
                 ConfigurationTile.configurationTile(obsSummaryOpt.map(_.id))
               )

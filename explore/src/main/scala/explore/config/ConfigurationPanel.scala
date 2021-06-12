@@ -7,7 +7,6 @@ import cats.effect.IO
 import cats.syntax.all._
 import crystal.ViewF
 import crystal.react.implicits._
-import crystal.react.reuse._
 import eu.timepit.refined.auto._
 import explore.AppCtx
 import explore.UnderConstruction
@@ -34,6 +33,8 @@ import monocle.macros.Lenses
 import react.common._
 import react.semanticui.collections.form.Form
 import react.semanticui.sizes._
+import explore.undo.UndoContext
+import explore.undo.UndoStacks
 
 final case class ConfigurationPanel(
   id:            Option[Observation.Id],
@@ -57,10 +58,9 @@ object ConfigurationPanel {
   )
 
   case class UndoView(
-    view:   View[State],
-    setter: Undoer.Setter[IO, State]
+    undoCtx: UndoContext[IO, State]
   ) {
-    private val undoableView = UndoableView(view, setter)
+    private val undoableView = UndoableView(undoCtx)
 
     def apply[A](
       modelGet: State => A,
@@ -82,11 +82,10 @@ object ConfigurationPanel {
   class Backend($ : BackendScope[Props, State]) {
     private def renderFn(
       props:        Props,
-      state:        State,
-      undoCtx:      Undoer.Context[IO, State]
+      undoCtx:      UndoContext[IO, State]
     )(implicit ctx: AppContextIO): VdomNode = {
-      val undoViewSet    =
-        UndoView(ViewF.fromState[IO]($), undoCtx.setter)
+      val undoViewSet = UndoView(undoCtx)
+
       def mode           = undoViewSet(State.mode)
       val isSpectroscopy = mode.get === ConfigurationMode.Spectroscopy
 
@@ -94,7 +93,7 @@ object ConfigurationPanel {
       val imaging      = undoViewSet(State.imagingOptions)
 
       ReactFragment(
-        props.renderInTitle(<.span(ExploreStyles.TitleStrip)(UndoButtons(state, undoCtx))),
+        props.renderInTitle(<.span(ExploreStyles.TitleStrip)(UndoButtons(undoCtx))),
         <.div(
           ExploreStyles.ExploreFormGrid,
           Form(size = Small)(
@@ -111,8 +110,13 @@ object ConfigurationPanel {
       )
     }
 
-    def render(props: Props, state: State) = AppCtx.using { implicit appCtx =>
-      UndoRegion[State](Reuse.currying(props, state).in(renderFn _))
+    def render(props: Props) = AppCtx.using { implicit appCtx =>
+      renderFn(
+        props,
+        UndoContext(ViewF[IO, UndoStacks[IO, State]](UndoStacks.empty, _ => IO.unit),
+                    ViewF.fromState($)
+        )
+      )
     }
   }
   protected val component =

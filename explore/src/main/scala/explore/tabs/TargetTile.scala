@@ -22,11 +22,15 @@ import lucuma.core.model.User
 import lucuma.ui.reusability._
 import react.common._
 import react.common.implicits._
+import explore.undo.UndoStacks
+import explore.common.TargetQueries.TargetResult
+import explore.optics._
 
 object TargetTile {
   def targetTile(
     userId:            Option[User.Id],
     targetId:          Option[Target.Id],
+    undoStacks:        View[Map[Target.Id, UndoStacks[IO, TargetResult]]],
     searching:         View[Set[Target.Id]],
     targetViewOptions: View[TargetVisualOptions]
   )(implicit ctx:      AppContextIO) = {
@@ -39,6 +43,7 @@ object TargetTile {
         TargetBody(uid,
                    targetId,
                    targetOpt.zoom(_.get)(f => _.map(f)),
+                   undoStacks.zoom(unsafeAtMap(targetId)),
                    searching,
                    targetViewOptions,
                    renderInTitle

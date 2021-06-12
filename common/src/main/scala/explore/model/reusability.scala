@@ -13,6 +13,7 @@ import lucuma.core.math.Wavelength
 import lucuma.ui.reusability._
 import react.common.Size
 import cats.data.NonEmptyList
+import explore.undo.UndoStacks
 
 /**
  * Reusability instances for model classes
@@ -47,4 +48,9 @@ object reusability {
     Reusability.byEq
   implicit val obsSummaryWithPointingAndConstraintsReuse
     : Reusability[ObsSummaryWithPointingAndConstraints]                               = Reusability.byEq
+  implicit def undoStacksReuse[F[_], M]: Reusability[UndoStacks[F, M]]                =
+    Reusability.by(s => (s.undo.length, s.redo.length, s.working))
+  implicit def undoStacksMapReuse[F[_], K, M]: Reusability[Map[K, UndoStacks[F, M]]]  =
+    Reusability.never
+  implicit def modelUndoStacksReuse[F[_]]: Reusability[ModelUndoStacks[F]]            = Reusability.derive
 }

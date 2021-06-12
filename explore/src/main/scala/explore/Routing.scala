@@ -20,7 +20,6 @@ import japgolly.scalajs.react.extra.router._
 import japgolly.scalajs.react.vdom.VdomElement
 import japgolly.scalajs.react.vdom.html_<^._
 import lucuma.core.model.Asterism
-import lucuma.core.model.ConstraintSet
 import lucuma.core.model.Observation
 import lucuma.core.model.Target
 import lucuma.core.util.Gid
@@ -49,10 +48,11 @@ object Routing {
         TargetTabContents(
           model.zoom(RootModel.userId).get,
           model.zoom(RootModel.focused),
+          model.zoom(RootModel.undoStacks).zoom(ModelUndoStacks.forTargetList),
+          model.zoom(RootModel.undoStacks).zoom(ModelUndoStacks.forTarget),
           model.zoom(RootModel.searchingTarget),
           model.zoom(RootModel.expandedIds),
           model.zoom(RootModel.targetSummaryHiddenColumns),
-          model.zoom(RootModel.undoStacks.composeLens(ModelUndoStacks.forTargetList)),
           size
         )
       )

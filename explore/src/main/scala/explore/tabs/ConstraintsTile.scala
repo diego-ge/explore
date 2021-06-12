@@ -12,18 +12,20 @@ import explore.components.Tile
 import explore.components.ui.ExploreStyles
 import explore.constraints.ConstraintsPanel
 import explore.implicits._
+import explore.undo._
 import explore.utils._
 import japgolly.scalajs.react.vdom.html_<^._
 import lucuma.core.model.Observation
 import lucuma.ui.reusability._
 import react.common._
+import cats.effect.IO
 
 object ConstraintsTile {
 
   def constraintsTile(
     obsId:      Observation.Id,
     csPot:      Pot[View[ConstraintSetData]],
-    undoStacks: View[Map[ConstraintSet.Id, UndoStacks2[IO, ConstraintSetData]]]
+    undoStacks: View[UndoStacks[IO, ConstraintSetData]]
   ): Tile =
     Tile(
       ObsTabTiles.ConstraintsId,

@@ -40,19 +40,22 @@ import react.resizeDetector.ResizeDetector
 import react.semanticui.elements.button.Button
 import react.semanticui.elements.button.Button.ButtonProps
 import react.semanticui.sizes._
+import explore.undo._
+import explore.common.TargetQueries.TargetResult
 
 import scala.concurrent.duration._
-import explore.undo._
+import explore.optics._
 
 final case class TargetTabContents(
-  userId:           Option[User.Id],
-  focused:          View[Option[Focused]],
-  searching:        View[Set[Target.Id]],
-  expandedIds:      View[ExpandedIds],
-  hiddenColumns:    View[Set[String]],
-  undoStacks:       View[UndoStacks[IO, PointingsWithObs]],
-  size:             ResizeDetector.Dimensions
-)(implicit val ctx: AppContextIO)
+  userId:            Option[User.Id],
+  focused:           View[Option[Focused]],
+  listUndoStacks:    View[UndoStacks[IO, PointingsWithObs]],
+  targetsUndoStacks: View[Map[Target.Id, UndoStacks[IO, TargetResult]]],
+  searching:         View[Set[Target.Id]],
+  expandedIds:       View[ExpandedIds],
+  hiddenColumns:     View[Set[String]],
+  size:              ResizeDetector.Dimensions
+)(implicit val ctx:  AppContextIO)
     extends ReactProps[TargetTabContents](TargetTabContents.component) {
   def isTargetSelected: Boolean = focused.get.collect { case Focused.FocusedTarget(_) =>
     ()
@@ -76,11 +79,12 @@ object TargetTabContents {
   def renderContents(
     userId:        User.Id,
     targetId:      Target.Id,
+    undoStacks:    View[UndoStacks[IO, TargetResult]],
     searching:     View[Set[Target.Id]],
     renderInTitle: Tile.RenderInTitle
   ): VdomNode =
     AppCtx.using(implicit ctx =>
-      TargetEditor(userId, targetId, searching, renderInTitle).withKey(targetId.show)
+      TargetEditor(userId, targetId, undoStacks, searching, renderInTitle).withKey(targetId.show)
     )
 
   protected def renderFn(
@@ -113,7 +117,7 @@ object TargetTabContents {
           props.focused,
           props.expandedIds,
           props.searching,
-          props.undoStacks
+          props.listUndoStacks
         )
       )
 
@@ -142,8 +146,17 @@ object TargetTabContents {
     val rightSide =
       (props.userId, targetIdOpt).tupled match {
         case Some((uid, tid)) =>
+          println(props.targetsUndoStacks.get)
+          println(props.targetsUndoStacks.get(tid))
+
           Tile("target", s"Target", backButton.some)(
-            Reuse(renderContents _)(uid, tid, props.searching)
+            Reuse(renderContents _)(
+              uid,
+              tid,
+              // props.targetsUndoStacks.zoom(unsafeAtMap(tid)),
+              ViewF[IO, UndoStacks[IO, TargetResult]](UndoStacks.empty, _ => IO.unit),
+              props.searching
+            )
           )
         case None             =>
           Tile("target", s"Targets Summary", backButton.some)(

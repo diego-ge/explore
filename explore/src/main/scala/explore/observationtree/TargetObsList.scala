@@ -64,7 +64,7 @@ import react.semanticui.views.card.CardContent
 
 import scala.collection.immutable.SortedSet
 import scala.util.Random
-import explore.components.undo.UndoButtons2
+import explore.components.undo.UndoButtons
 import monocle.Getter
 
 final case class TargetObsList(
@@ -72,7 +72,7 @@ final case class TargetObsList(
   focused:          View[Option[Focused]],
   expandedIds:      View[ExpandedIds],
   searching:        View[Set[Target.Id]],
-  undoStacks:       View[UndoStacks2[IO, PointingsWithObs]]
+  undoStacks:       View[UndoStacks[IO, PointingsWithObs]]
 )(implicit val ctx: AppContextIO)
     extends ReactProps[TargetObsList](TargetObsList.component)
     with ViewCommon
@@ -547,7 +547,7 @@ object TargetObsList {
                 )
               )
             ),
-            UndoButtons2(undoCtx, size = Mini)
+            UndoButtons(undoCtx, size = Mini)
           ),
           <.div(
             Button(onClick = props.focused.set(none).runAsyncCB,

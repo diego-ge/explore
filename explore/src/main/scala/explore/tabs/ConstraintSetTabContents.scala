@@ -35,11 +35,9 @@ import react.resizeDetector.ResizeDetector
 import react.semanticui.elements.button.Button
 import react.semanticui.elements.button.Button.ButtonProps
 import react.semanticui.sizes._
-import explore.optics._
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration._
-import explore.undo._
 
 final case class ConstraintSetTabContents(
   userId:           Option[User.Id],
@@ -49,7 +47,7 @@ final case class ConstraintSetTabContents(
   size:             ResizeDetector.Dimensions
 )(implicit val ctx: AppContextIO)
     extends ReactProps[ConstraintSetTabContents](ConstraintSetTabContents.component) {
-  def isCsSelected: Boolean = focused.get.collect { case Focused.FocusedConstraintSet(_) =>
+  def isSelected: Boolean = focused.get.collect { case Focused.FocusedObs(_) =>
     ()
   }.isDefined
 }
@@ -79,7 +77,7 @@ object ConstraintSetTabContents {
       (_: ReactEvent, d: ResizeCallbackData) =>
         (state.zoom(TwoPanelState.treeWidth).set(d.size.width) *>
           UserWidthsCreation
-            .storeWidthPreference[IO](props.userId.get,
+            .storeWidthPreference[IO](props.userId,
                                       ResizableSection.ConstraintSetsTree,
                                       d.size.width
             )).runAsyncCB
@@ -147,9 +145,9 @@ object ConstraintSetTabContents {
       .builder[Props]
       .getDerivedStateFromPropsAndState((p, s: Option[State]) =>
         s match {
-          case None    => TwoPanelState.initial(p.isCsSelected)
+          case None    => TwoPanelState.initial(p.isSelected)
           case Some(s) =>
-            if (s.elementSelected =!= p.isCsSelected) s.copy(elementSelected = p.isCsSelected)
+            if (s.elementSelected =!= p.isSelected) s.copy(elementSelected = p.isSelected)
             else s
         }
       )

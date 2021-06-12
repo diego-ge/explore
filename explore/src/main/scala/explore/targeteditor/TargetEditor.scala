@@ -25,10 +25,13 @@ import lucuma.core.model.User
 import lucuma.ui.reusability._
 import monocle.macros.Lenses
 import react.common._
+import explore.undo._
+import explore.common.TargetQueries.TargetResult
 
 final case class TargetEditor(
   uid:              User.Id,
   tid:              Target.Id,
+  undoStacks:       View[UndoStacks[IO, TargetResult]],
   searching:        View[Set[Target.Id]],
   renderInTitle:    Tile.RenderInTitle
 )(implicit val ctx: AppContextIO)
@@ -49,6 +52,8 @@ object TargetEditor {
 
   protected class Backend($ : BackendScope[Props, State]) {
     def render(props: Props) = {
+      println("IN TARGET EDITOR")
+
       implicit val ctx = props.ctx
       LiveQueryRenderMod[ObservationDB, TargetEditQuery.Data, Option[TargetEditQuery.Data.Target]](
         TargetEditQuery.query(props.tid).reuseAlways,
@@ -68,6 +73,7 @@ object TargetEditor {
                   TargetBody(props.uid,
                              props.tid,
                              targetOpt.zoom(_.get)(f => _.map(f)),
+                             props.undoStacks,
                              props.searching,
                              state.zoom(State.options),
                              props.renderInTitle
