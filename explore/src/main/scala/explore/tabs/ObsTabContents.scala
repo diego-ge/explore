@@ -53,6 +53,7 @@ import react.resizeDetector.ResizeDetector
 import react.semanticui.elements.button.Button
 import react.semanticui.elements.button.Button.ButtonProps
 import react.semanticui.sizes._
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import scala.concurrent.duration._
 
@@ -302,7 +303,7 @@ object ObsTabContents {
           props.size.width.getOrElse(0) - treeWidth
         }
 
-      val layouts = ViewF.fromStateSyncIO($).zoom(State.layouts)
+      val layouts = ViewF.fromState($).zoom(State.layouts)
 
       val notesTile =
         Tile(
@@ -427,7 +428,7 @@ object ObsTabContents {
 
     def render(props: Props) = {
       implicit val ctx = props.ctx
-      ObsLiveQuery(Reuse(renderFn _)(props, ViewF.fromStateSyncIO($)))
+      ObsLiveQuery(Reuse(renderFn _)(props, ViewF.fromState($)))
     }
   }
 

@@ -16,6 +16,7 @@ import lucuma.core.math.Wavelength
 import lucuma.core.model.Observation
 import lucuma.core.optics.syntax.lens._
 import monocle.Lens
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 object ScienceRequirementsQueries {
   case class UndoView(

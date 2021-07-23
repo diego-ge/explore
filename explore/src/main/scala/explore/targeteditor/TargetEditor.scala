@@ -27,6 +27,7 @@ import lucuma.core.model.User
 import lucuma.ui.reusability._
 import monocle.Focus
 import react.common._
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 final case class TargetEditor(
   uid:              User.Id,
@@ -61,7 +62,7 @@ object TargetEditor {
       )(
         potRender(
           Reuse
-            .currying(props, ViewF.fromStateSyncIO($))
+            .currying(props, ViewF.fromState($))
             .in(
               (
                 props,

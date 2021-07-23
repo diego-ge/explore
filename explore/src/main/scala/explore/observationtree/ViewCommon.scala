@@ -4,7 +4,6 @@
 package explore.observationtree
 
 import cats.syntax.all._
-import crystal.react.implicits._
 import explore._
 import explore.components.ui.ExploreStyles
 import explore.model.Focused

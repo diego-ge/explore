@@ -25,6 +25,7 @@ import lucuma.core.model.Magnitude
 import lucuma.core.model.SiderealTracking
 import lucuma.core.model.Target
 import monocle.Lens
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import TargetQueriesGQL._
 

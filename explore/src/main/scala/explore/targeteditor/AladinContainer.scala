@@ -61,6 +61,11 @@ object AladinContainer {
   val AladinComp = Aladin.component
 
   class Backend($ : BackendScope[Props, State]) {
+
+    val xxx: japgolly.scalajs.react.util.DefaultEffects.Sync[Int]
+    val yyy: japgolly.scalajs.react.util.DefaultEffects.Async[Int]
+    val zzz = AladinComp
+
     // Create a mutable reference
     private val aladinRef = Ref.toScalaComponent(AladinComp)
 

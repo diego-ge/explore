@@ -3,7 +3,6 @@
 
 package explore
 
-import cats.effect.SyncIO
 import cats.syntax.all._
 import explore.components.ui.ExploreStyles
 import explore.config.SequenceEditor
@@ -24,6 +23,7 @@ import react.resizeDetector.ResizeDetector
 
 import scala.scalajs.LinkingInfo
 import scala.util.Random
+import japgolly.scalajs.react.callback.Callback
 
 sealed trait ElementItem  extends Product with Serializable
 case object IconsElement  extends ElementItem
@@ -130,7 +130,7 @@ object Routing {
             case (None, next, view) =>
               // Set the model if none was previously set
               view.zoom(RootModelRouting.lens).set(next)
-            case _                  => SyncIO.unit
+            case _                  => Callback.empty
           }
           .renderWithP(layout)
       // .logToConsole

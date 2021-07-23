@@ -19,8 +19,10 @@ import explore.utils
 import io.circe.Json
 import org.typelevel.log4cats.Logger
 import sttp.model.Uri
+import japgolly.scalajs.react.util.Effect
+import japgolly.scalajs.react.callback.CallbackTo
 
-case class Clients[F[_]: Async: Parallel: Dispatcher: Logger](
+case class Clients[F[_]: Async: Parallel: Logger: Effect.Dispatch](
   odb:           WebSocketClient[F, ObservationDB],
   preferencesDB: WebSocketClient[F, UserPreferencesDB]
 ) {
@@ -54,42 +56,44 @@ case class AppContext[F[_]](
   sso:            SSOClient[F],
   pageUrl:        (AppTab, Option[Focused]) => String,
   environment:    ExecutionEnvironment,
-  fromSyncIO:     SyncIO ~> F
+  fromCB:         CallbackTo ~> F
 )(implicit
   val F:          Applicative[F],
   val dispatcher: Dispatcher[F],
   val logger:     Logger[F]
 ) {
-  val syncLogger: Logger[SyncIO] = {
-    def f(x: F[Unit]): SyncIO[Unit] = SyncIO(dispatcher.unsafeRunAndForget(x))
-    new Logger[SyncIO] {
-      def error(t:       Throwable)(message:       => String): SyncIO[Unit] =
-        f(logger.error(t)(message))
-      def warn(t:        Throwable)(message:       => String): SyncIO[Unit] =
-        f(logger.warn(t)(message))
-      def info(t:        Throwable)(message:       => String): SyncIO[Unit] =
-        f(logger.info(t)(message))
-      def debug(t:       Throwable)(message:       => String): SyncIO[Unit] =
-        f(logger.debug(t)(message))
-      def trace(t:       Throwable)(message: => String): SyncIO[Unit] =
-        f(logger.trace(t)(message))
-      def error(message: => String): SyncIO[Unit] =
-        f(logger.error(message))
-      def warn(message:  => String): SyncIO[Unit] =
-        f(logger.warn(message))
-      def info(message:  => String): SyncIO[Unit] =
-        f(logger.info(message))
-      def debug(message: => String): SyncIO[Unit] =
-        f(logger.debug(message))
-      def trace(message: => String): SyncIO[Unit] =
-        f(logger.trace(message))
-    }
-  }
+  // val syncLogger: Logger[SyncIO] = {
+  //   def f(x: F[Unit]): SyncIO[Unit] = SyncIO(dispatcher.unsafeRunAndForget(x))
+  //   new Logger[SyncIO] {
+  //     def error(t:       Throwable)(message:       => String): SyncIO[Unit] =
+  //       f(logger.error(t)(message))
+  //     def warn(t:        Throwable)(message:       => String): SyncIO[Unit] =
+  //       f(logger.warn(t)(message))
+  //     def info(t:        Throwable)(message:       => String): SyncIO[Unit] =
+  //       f(logger.info(t)(message))
+  //     def debug(t:       Throwable)(message:       => String): SyncIO[Unit] =
+  //       f(logger.debug(t)(message))
+  //     def trace(t:       Throwable)(message: => String): SyncIO[Unit] =
+  //       f(logger.trace(t)(message))
+  //     def error(message: => String): SyncIO[Unit] =
+  //       f(logger.error(message))
+  //     def warn(message:  => String): SyncIO[Unit] =
+  //       f(logger.warn(message))
+  //     def info(message:  => String): SyncIO[Unit] =
+  //       f(logger.info(message))
+  //     def debug(message: => String): SyncIO[Unit] =
+  //       f(logger.debug(message))
+  //     def trace(message: => String): SyncIO[Unit] =
+  //       f(logger.trace(message))
+  //   }
+  // }
 
 }
 
 object AppContext {
-  private def buildClients[F[_]: Async: WebSocketBackend: Parallel: Dispatcher: Logger](
+  private def buildClients[F[
+    _
+  ]: Async: WebSocketBackend: Parallel: Logger: Effect.Dispatch](
     odbURI:               Uri,
     prefsURI:             Uri,
     reconnectionStrategy: WebSocketReconnectionStrategy
@@ -101,11 +105,11 @@ object AppContext {
         ApolloWebSocketClient.of[F, UserPreferencesDB](prefsURI, "PREFS", reconnectionStrategy)
     } yield Clients(odbClient, prefsClient)
 
-  def from[F[_]: Async: WebSocketBackend: Parallel: Dispatcher: Logger](
+  def from[F[_]: Async: WebSocketBackend: Parallel: Dispatcher: Logger: Effect.Dispatch](
     config:               AppConfig,
     reconnectionStrategy: WebSocketReconnectionStrategy,
     pageUrl:              (AppTab, Option[Focused]) => String,
-    fromSyncIO:           SyncIO ~> F
+    fromCB:               CallbackTo ~> F
   ): F[AppContext[F]] =
     for {
       clients <- buildClients(config.odbURI, config.preferencesDBURI, reconnectionStrategy)
@@ -117,6 +121,6 @@ object AppContext {
                           SSOClient(config.sso),
                           pageUrl,
                           config.environment,
-                          fromSyncIO
+                          fromCB
     )
 }

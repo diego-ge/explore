@@ -3,10 +3,8 @@
 
 package explore.observationtree
 
-import cats.effect.SyncIO
-import cats.syntax.all._
 import crystal.ViewF
-import crystal.react.implicits._
+import cats.syntax.all._
 import crystal.react.reuse._
 import explore.Icons
 import explore.components.ui.ExploreStyles
@@ -33,13 +31,14 @@ import react.semanticui.modules.checkbox.Checkbox
 import react.semanticui.modules.dropdown.Dropdown
 import react.semanticui.sizes._
 import react.semanticui.views.card._
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 final case class ObsBadge(
   obs:               ObsSummary, // The layout will depend on the mixins of the ObsSummary.
   selected:          Boolean = false,
-  setStatusCB:       Option[ObsStatus ==> SyncIO[Unit]] = None,
-  setActiveStatusCB: Option[ObsActiveStatus ==> SyncIO[Unit]] = None,
-  deleteCB:          Option[Reuse[SyncIO[Unit]]] = None
+  setStatusCB:       Option[ObsStatus ==> Callback] = None,
+  setActiveStatusCB: Option[ObsActiveStatus ==> Callback] = None,
+  deleteCB:          Option[Reuse[Callback]] = None
 ) extends ReactProps[ObsBadge](ObsBadge.component)
 
 object ObsBadge {
@@ -134,11 +133,11 @@ object ObsBadge {
                 props.setStatusCB.map(setStatus =>
                   EnumViewSelect(
                     id = s"obs-status-${obs.id}-2",
-                    value = ViewF[SyncIO, ObsStatus](obs.status,
-                                                     { (f, cb) =>
-                                                       val newValue = f(obs.status)
-                                                       setStatus(newValue) >> cb(newValue)
-                                                     }
+                    value = ViewF[CallbackTo, ObsStatus](obs.status,
+                                                         { (f, cb) =>
+                                                           val newValue = f(obs.status)
+                                                           setStatus(newValue) >> cb(newValue)
+                                                         }
                     ),
                     compact = true,
                     onClickE = (e: ReactEvent, _: Dropdown.DropdownProps) =>

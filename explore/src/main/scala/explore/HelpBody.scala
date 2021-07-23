@@ -10,7 +10,6 @@ import crystal.Pot
 import crystal.Ready
 import crystal.react.implicits._
 import explore.components.ui.ExploreStyles
-import explore.implicits._
 import explore.model.Help
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
@@ -94,7 +93,7 @@ object HelpBody {
           <.div(
             ExploreStyles.HelpSidebar,
             GlobalHotKeys(keyMap = KeyMap("CLOSE_HELP" -> "ESC"),
-                          handlers = Handlers("CLOSE_HELP" -> helpView.set(none).toCB)
+                          handlers = Handlers("CLOSE_HELP" -> helpView.set(none))
             ),
             <.div(
               ExploreStyles.HelpTitle,
@@ -140,13 +139,9 @@ object HelpBody {
           )
         }
       }
-      .componentDidMount { $ =>
-        implicit val ctx = $.props.ctx
-
-        load($.props.url)
-          .flatMap(v => $.modStateIn[IO](State.content.replace(Pot.fromTry(v))))
-          .runAsync
-      }
+      .componentDidMount($ =>
+        load($.props.url).flatMap(v => $.modStateIn[IO](State.content.replace(Pot.fromTry(v))))
+      )
       .build
 
 }

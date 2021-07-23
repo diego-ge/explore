@@ -12,7 +12,7 @@ object Settings {
     val circe             = "0.14.1"
     val circeGolden       = "0.3.0"
     val clue              = "0.16.0"
-    val crystal           = "0.15.2"
+    val crystal           = "0.15.2+0-9056442e+20210723-1610-SNAPSHOT"
     val discipline        = "1.1.5"
     val disciplineMUnit   = "1.0.9"
     val fs2               = "3.0.6"
@@ -22,14 +22,14 @@ object Settings {
     val log4CatsLogLevel  = "0.3.0"
     val lucumaCore        = "0.11.0"
     val lucumaCatalog     = "0.5.0"
-    val lucumaUI          = "0.17.0"
+    val lucumaUI          = "0.17.0+0-d8951101+20210723-1105-SNAPSHOT"
     val lucumaSSO         = "0.0.9"
     val lucumaBC          = "0.2.4"
     val monocle           = "3.0.0"
     val mouse             = "1.0.4"
     val mUnit             = "0.7.27"
     val mUnitCatsEffect   = "1.0.5"
-    val reactAladin       = "0.6.0"
+    val reactAladin       = "0.6.0+0-194494a5+20210723-0956-SNAPSHOT" // Maybe this is not necessary??
     val reactAtlasKitTree = "0.4.1"
     val reactClipboard    = "1.5.0"
     val reactCommon       = "0.13.0"
@@ -40,7 +40,7 @@ object Settings {
     val reactResizable    = "0.6.0"
     val reactSemanticUI   = "0.11.1"
     val reactTable        = "0.2.0"
-    val scalaJsReact      = "2.0.0-RC2"
+    val scalaJsReact      = "2.0.0-SNAPSHOT"
     val sttp              = "3.3.11"
     val pprint            = "0.6.6"
   }
@@ -275,11 +275,12 @@ object Settings {
 
     val ScalaJSReact = Def.setting(
       deps(
-        "com.github.japgolly.scalajs-react" %%% "core",
+        "com.github.japgolly.scalajs-react" %%% "core-bundle-cb_io",
         "com.github.japgolly.scalajs-react" %%% "extra",
         "com.github.japgolly.scalajs-react" %%% "extra-ext-monocle3",
-        "com.github.japgolly.scalajs-react" %%% "core-ext-cats",
-        "com.github.japgolly.scalajs-react" %%% "core-ext-cats_effect"
+        "com.github.japgolly.scalajs-react" %%% "callback-ext-cats_effect"
+        // "com.github.japgolly.scalajs-react" %%% "core-ext-cats"
+        // "com.github.japgolly.scalajs-react" %%% "core-ext-cats_effect"
       )(scalaJsReact)
     )
 

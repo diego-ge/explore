@@ -4,7 +4,6 @@
 package explore
 
 import cats.effect.IO
-import cats.effect.SyncIO
 import cats.syntax.all._
 import crystal.react.implicits._
 import crystal.react.reuse.Reuse
@@ -35,6 +34,7 @@ import react.semanticui.modules.dropdown.DropdownItem
 import react.semanticui.modules.dropdown.DropdownMenu
 import react.semanticui.shorthand._
 import react.semanticui.views.item.Item
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 final case class TopBar(
   user:     User,
@@ -142,9 +142,9 @@ object TopBar {
                       ),
                       DropdownItem(onClick =
                         utils
-                          .setupScheme[SyncIO](
+                          .setupScheme[CallbackTo](
                             if (currentTheme === Theme.Dark) Theme.Light else Theme.Dark
-                          ) *> $.modStateIn[SyncIO](_.flip)
+                          ) *> $.modState(_.flip)
                       )(
                         Checkbox(label = "Dark/Light", checked = currentTheme === Theme.Dark)
                       )

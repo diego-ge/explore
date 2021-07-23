@@ -48,6 +48,7 @@ import react.semanticui.sizes._
 import sttp.client3._
 import sttp.client3.impl.cats.FetchCatsBackend
 import sttp.model._
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import scala.concurrent.duration._
 
@@ -138,7 +139,7 @@ object ConfigurationPanel {
         ScienceRequirementsData.spectroscopyRequirements,
         UpdateScienceRequirements.spectroscopyRequirements
       )
-      val imaging      = ViewF.fromStateSyncIO($).zoom(State.imagingOptions)
+      val imaging      = ViewF.fromState($).zoom(State.imagingOptions)
 
       <.div(
         ExploreStyles.ConfigurationGrid,

@@ -103,7 +103,7 @@ object CataloguesForm {
                 .map { a =>
                   optionsV.zoom(TargetVisualOptions.posAngle).set(a)
                 }
-                .orEmpty
+                .getOrEmpty
             }
           )
         )

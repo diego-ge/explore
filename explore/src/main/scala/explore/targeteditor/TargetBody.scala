@@ -46,6 +46,7 @@ import react.common._
 import react.semanticui.collections.form.Form
 import react.semanticui.elements.label.LabelPointing
 import react.semanticui.sizes.Small
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 final case class SearchCallback(
   searchTerm: NonEmptyString,
@@ -150,14 +151,14 @@ object TargetBody {
             .search(s.searchTerm)
             .runAsyncAndThenCB {
               case Right(r @ Some(Target(n, Right(st), m))) =>
-                allView.set((n, st, m.values.toList)).toCB >> s.onComplete(r)
+                allView.set((n, st, m.values.toList)) >> s.onComplete(r)
               case Right(Some(r))                           =>
                 Callback.log(s"Unknown target type $r") >>
-                  nameView.set(s.searchTerm).toCB >> s.onComplete(none)
+                  nameView.set(s.searchTerm) >> s.onComplete(none)
               case Right(None)                              =>
-                nameView.set(s.searchTerm).toCB >> s.onComplete(none)
+                nameView.set(s.searchTerm) >> s.onComplete(none)
               case Left(t)                                  =>
-                nameView.set(s.searchTerm).toCB >> s.onError(t)
+                nameView.set(s.searchTerm) >> s.onError(t)
             }
 
         val disabled = props.searching.get.exists(_ === props.id)

@@ -143,7 +143,7 @@ object ConstraintSetTabContents {
   protected class Backend($ : BackendScope[Props, State]) {
     def render(props: Props) = {
       implicit val ctx = props.ctx
-      renderFn(props, ViewF.fromStateSyncIO($), window.innerWidth)
+      renderFn(props, ViewF.fromState($), window.innerWidth)
 
     }
   }

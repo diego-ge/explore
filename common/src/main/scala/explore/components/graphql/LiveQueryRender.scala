@@ -18,6 +18,7 @@ import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
 import org.typelevel.log4cats.Logger
 import react.common._
+import japgolly.scalajs.react.util.Effect
 
 final case class LiveQueryRender[S, D, A](
   query:               Reuse[IO[D]],
@@ -49,7 +50,7 @@ object LiveQueryRender {
     Reusability.by(p => (p.query, p.extract, p.changeSubscriptions, p.render, p.onNewData))
   implicit def stateReuse[F[_], S, D, A]: Reusability[State[F, S, D, A]] = Reusability.never
 
-  protected def componentBuilder[F[_], S, D, A] =
+  protected def componentBuilder[F[_]: Effect.Dispatch, S, D, A] =
     ScalaComponent
       .builder[Props[F, S, D, A]]
       .initialState[Option[State[F, S, D, A]]](none)
@@ -59,10 +60,9 @@ object LiveQueryRender {
           .didMountFn[F, Id, S, D, A][Props[F, S, D, A], State[F, S, D, A]](
             "LiveQueryRender",
             (stream, props) => {
-              implicit val F          = props.F
-              implicit val dispatcher = props.dispatcher
-              implicit val logger     = props.logger
-              implicit val reuse      = props.reuse
+              implicit val F      = props.F
+              implicit val logger = props.logger
+              implicit val reuse  = props.reuse
 
               StreamRenderer.build(stream)
             },

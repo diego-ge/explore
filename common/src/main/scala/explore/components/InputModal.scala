@@ -21,6 +21,7 @@ import react.semanticui.elements.button.Button
 import react.semanticui.modules.modal._
 import react.semanticui.shorthand._
 import react.semanticui.sizes.Small
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 /**
  * Generic component to accept user input
@@ -49,7 +50,7 @@ object InputModal {
 
   protected class Backend($ : BackendScope[Props, State]) {
     def render(props: Props, state: State) = {
-      val valueView = ViewF.fromStateSyncIO($).zoom(State.inputValue)
+      val valueView = ViewF.fromState($).zoom(State.inputValue)
 
       val cleanInput = $.setStateL(State.inputValue)("")
 

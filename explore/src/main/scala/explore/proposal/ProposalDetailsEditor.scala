@@ -39,6 +39,7 @@ import react.semanticui.collections.form._
 import react.semanticui.elements.label.Label
 import react.semanticui.shorthand._
 import spire.std.any._
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import scala.annotation.unused
 
@@ -236,14 +237,13 @@ object ProposalDetailsEditor {
             details
               .zoom(ProposalDetails.abstrakt)
               .set(tap.value.asInstanceOf[String])
-              .toCB
           }
         ).addModifiers(Seq(^.id := "abstract"))
       )
     }
 
     def render(props: Props, state: State) = {
-      val splitsZoom = ViewF.fromStateSyncIO($).zoom(State.splits)
+      val splitsZoom = ViewF.fromState($).zoom(State.splits)
 
       val details = props.proposalDetails
 
@@ -253,8 +253,7 @@ object ProposalDetailsEditor {
       def saveStateSplits(details: View[ProposalDetails], splits: List[PartnerSplit]): Callback =
         details
           .zoom(ProposalDetails.partnerSplits)
-          .set(splits.filter(_.percent.value.value > 0))
-          .toCB *>
+          .set(splits.filter(_.percent.value.value > 0)) *>
           closePartnerSplitsEditor
 
       <.div(

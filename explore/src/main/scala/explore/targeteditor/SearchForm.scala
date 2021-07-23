@@ -28,6 +28,7 @@ import react.semanticui.collections.form.Form.FormProps
 import react.semanticui.collections.form._
 import react.semanticui.elements.label.LabelPointing
 import react.semanticui.shorthand._
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import scalajs.js.JSConverters._
 
@@ -115,7 +116,7 @@ object SearchForm {
         <.label("Name", HelpIcon("target/main/search-target.md"), ExploreStyles.SkipToNext),
         FormInputEV(
           id = "search",
-          value = ViewF.fromStateSyncIO($).zoom(State.searchTerm),
+          value = ViewF.fromState($).zoom(State.searchTerm),
           validFormat = ValidFormatInput.nonEmptyValidFormat,
           error = state.searchError.orUndefined,
           loading = disabled,

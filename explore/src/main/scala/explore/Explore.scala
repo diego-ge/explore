@@ -3,16 +3,14 @@
 
 package explore
 
+import cats.~>
 import cats.effect.IO
-import cats.effect.SyncIO
 import cats.effect.std.Dispatcher
 import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
-import cats.~>
 import clue.WebSocketReconnectionStrategy
 import clue.js.WebSocketJSBackend
 import crystal.react._
-import crystal.react.implicits._
 import crystal.react.reuse._
 import eu.timepit.refined.auto._
 import explore.components.ui.ExploreStyles
@@ -44,12 +42,14 @@ import sttp.client3._
 import sttp.client3.circe._
 import sttp.client3.impl.cats.FetchCatsBackend
 import sttp.model.Uri
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.scalajs.js
 
 import js.annotation._
+import japgolly.scalajs.react.callback.CallbackTo
 
 @JSExportTopLevel("Explore")
 object ExploreMain {
@@ -65,8 +65,8 @@ object ExploreMain {
 
   private var releaseOldDispatcher: Option[IO[Unit]] = none
 
-  val syncIOtoIO: SyncIO ~> IO = new ~>[SyncIO, IO] {
-    def apply[A](fa: SyncIO[A]): IO[A] = fa.to[IO]
+  val cbToIO: CallbackTo ~> IO = new ~>[CallbackTo, IO] {
+    def apply[A](fa: CallbackTo[A]): IO[A] = IO(fa.runNow())
   }
 
   @JSExport
@@ -158,7 +158,6 @@ object ExploreMain {
           view.withOnMod { model =>
             routerCtl
               .set(RootModelRouting.lens.get(model))
-              .to[SyncIO]
           }
 
         def rootComponent(view: View[RootModel]): VdomElement =
@@ -174,15 +173,14 @@ object ExploreMain {
           appConfig            <- fetchConfig
           _                    <- logger.info(s"Git Commit: [${utils.gitHash.getOrElse("NONE")}]")
           _                    <- logger.info(s"Config: ${appConfig.show}")
-          ctx                  <- AppContext.from[IO](appConfig, reconnectionStrategy, pageUrl, syncIOtoIO)
+          ctx                  <- AppContext.from[IO](appConfig, reconnectionStrategy, pageUrl, cbToIO)
           r                    <- (ctx.sso.whoami, setupDOM(), showEnvironment(appConfig.environment)).parTupled
           (vault, container, _) = r
         } yield {
-          val RootComponent =
-            ContextProviderSyncIO(AppCtx, ctx)
+          val RootComponent = ContextProviderBuilder(AppCtx, ctx)
 
           val HelpContextComponent =
-            ContextProviderSyncIO(
+            ContextProviderBuilder(
               HelpCtx,
               HelpContext(
                 rawUrl = uri"https://raw.githubusercontent.com",
@@ -193,8 +191,7 @@ object ExploreMain {
               )
             )
 
-          val StateProviderComponent =
-            StateProviderSyncIO(initialModel(vault))
+          val StateProviderComponent = StateProviderBuilder(initialModel(vault))
 
           RootComponent(
             (HelpContextComponent(

@@ -27,6 +27,7 @@ import monocle.Focus
 import react.common._
 import react.common.implicits._
 import react.semanticui.elements.label.LabelPointing
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 final case class RVInput(
   value:    View[Option[RadialVelocity]],
@@ -94,7 +95,7 @@ object RVInput {
 
   class Backend($ : BackendScope[Props, State]) {
     def render(props: Props, state: State) = {
-      val rvView = ViewF.fromStateSyncIO($).zoom(State.rvView)
+      val rvView = ViewF.fromState($).zoom(State.rvView)
       val input  = state.rvView match {
         case RVView.Z  =>
           FormInputEV(

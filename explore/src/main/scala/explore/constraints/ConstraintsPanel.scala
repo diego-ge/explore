@@ -45,6 +45,7 @@ import react.semanticui.collections.form.Form
 import react.semanticui.elements.label.Label
 import react.semanticui.elements.label.LabelPointing
 import react.semanticui.shorthand._
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 final case class ConstraintsPanel(
   obsId:         Observation.Id,
@@ -298,7 +299,7 @@ object ConstraintsPanel {
     }
 
     def render(props: Props) = AppCtx.using { implicit appCtx =>
-      renderFn(props, ViewF.fromStateSyncIO($), UndoContext(props.undoStacks, props.constraintSet))
+      renderFn(props, ViewF.fromState($), UndoContext(props.undoStacks, props.constraintSet))
     }
   }
 

@@ -3,7 +3,6 @@
 
 package explore
 
-import cats.effect.SyncIO
 import cats.syntax.all._
 import crystal.react.Ctx
 import eu.timepit.refined.api.Refined
@@ -13,8 +12,9 @@ import japgolly.scalajs.react.Reusability
 import japgolly.scalajs.react.Reusability._
 import monocle.Focus
 import sttp.model.Uri
+import japgolly.scalajs.react.callback.CallbackTo
 
-object AppCtx extends Ctx[SyncIO, AppContextIO]
+object AppCtx extends Ctx[CallbackTo, AppContextIO]
 
 case class HelpContext(
   rawUrl:        Uri,
@@ -33,4 +33,4 @@ object HelpContext {
     Reusability.by(x => (x.rawUrl, x.editUrl, x.user.value, x.project.value, x.displayedHelp))
 }
 
-object HelpCtx extends Ctx[SyncIO, HelpContext]
+object HelpCtx extends Ctx[CallbackTo, HelpContext]

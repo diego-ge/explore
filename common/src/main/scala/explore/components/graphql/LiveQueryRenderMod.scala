@@ -21,6 +21,8 @@ import react.common._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import japgolly.scalajs.react.util.Effect
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 final case class LiveQueryRenderMod[S, D, A](
   query:               Reuse[IO[D]],
@@ -52,7 +54,7 @@ object LiveQueryRenderMod {
     Reusability.by(p => (p.query, p.extract, p.changeSubscriptions, p.render, p.onNewData))
   implicit def stateReuse[F[_], S, D, A]: Reusability[State[F, S, D, A]] = Reusability.never
 
-  protected def componentBuilder[F[_], S, D, A] =
+  protected def componentBuilder[F[_]: Effect.Dispatch, S, D, A] =
     ScalaComponent
       .builder[Props[F, S, D, A]]
       .initialState[Option[State[F, S, D, A]]](none)

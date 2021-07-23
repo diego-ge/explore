@@ -31,6 +31,7 @@ object Render {
     implicit val dispatcher: Dispatcher[F]
     implicit val logger: Logger[F]
     implicit val reuse: Reusability[A]
+    // implicit val dispatch: Effect.Dispatch[F]
   }
 
   type StreamRendererProps[G[_], A]     = Pot[G[A]] ==> VdomNode
@@ -72,12 +73,12 @@ object Render {
     class WillUnmountApplied[F[_], G[_], D, A] {
       def apply[P <: Props[F, G, D, A], S <: State[F, G, D, A]](
         $ : ComponentWillUnmount[P, Option[S], Unit]
-      ): Callback = {
-        implicit val F          = $.props.F
-        implicit val dispatcher = $.props.dispatcher
-        implicit val logger     = $.props.logger
+      ): F[Unit] = {
+        implicit val F = $.props.F
+        // implicit val dispatcher = $.props.dispatcher
+        // implicit val logger     = $.props.logger
 
-        $.state.map(_.subscription.stop().runAsyncCB).getOrEmpty
+        $.state.map(_.subscription.stop()).getOrElse(F.unit)
       }
     }
 
@@ -110,10 +111,10 @@ object Render {
           F[Unit],
           StreamRendererComponent[G, A]
         ) => ST
-      )($             : ComponentDidMount[P, Option[ST], Unit]): Callback = {
-        implicit val F          = $.props.F
-        implicit val dispatcher = $.props.dispatcher
-        implicit val logger     = $.props.logger
+      )($             : ComponentDidMount[P, Option[ST], Unit]): F[Unit] = {
+        implicit val F      = $.props.F
+        // implicit val dispatcher = $.props.dispatcher
+        implicit val logger = $.props.logger
 
         def queryAndEnqueue(queue: Queue[F, A]): F[Unit] =
           for {
@@ -167,7 +168,6 @@ object Render {
 
         init
           .handleErrorWith(t => logger.error(t)(s"Error initializing $componentName"))
-          .runAsyncCB
       }
     }
 
@@ -177,17 +177,17 @@ object Render {
     class WillUnmountApplied[F[_], G[_], S, D, A] {
       def apply[P <: Props[F, G, S, D, A], ST <: State[F, G, S, D, A]](
         $ : ComponentWillUnmount[P, Option[ST], Unit]
-      ): Callback = {
-        implicit val F          = $.props.F
-        implicit val dispatcher = $.props.dispatcher
-        implicit val logger     = $.props.logger
+      ): F[Unit] = {
+        implicit val F = $.props.F
+        // implicit val dispatcher = $.props.dispatcher
+        // implicit val logger = $.props.logger
 
         $.state
           .map(state =>
             (state.cancelConnectionTracker >>
-              state.subscriptions.map(_.stop().handleError(_ => ())).sequence.void).runAsyncCB
+              state.subscriptions.map(_.stop().handleError(_ => ())).sequence.void)
           )
-          .getOrEmpty
+          .getOrElse(F.unit)
       }
     }
 

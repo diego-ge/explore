@@ -4,7 +4,6 @@
 package explore
 
 import cats._
-import cats.effect.SyncIO
 import cats.effect.std.Dispatcher
 import cats.syntax.all._
 import clue._
@@ -77,7 +76,7 @@ trait ContextImplicits {
     ctx.clients.odb
   implicit def appContext2fromSync[F[_]](implicit
     ctx: AppContext[F]
-  ): SyncIO ~> F = ctx.fromSyncIO
+  ): CallbackTo ~> F = ctx.fromCB
 }
 
 object implicits extends ShorthandTypes with ListImplicits with ContextImplicits {

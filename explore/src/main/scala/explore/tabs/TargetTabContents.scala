@@ -207,7 +207,7 @@ object TargetTabContents {
   protected class Backend($ : BackendScope[Props, State]) {
     def render(props: Props) = {
       implicit val ctx = props.ctx
-      TargetObsLiveQuery(Reuse(renderFn _)(props, ViewF.fromStateSyncIO($)))
+      TargetObsLiveQuery(Reuse(renderFn _)(props, ViewF.fromState($)))
     }
   }
 

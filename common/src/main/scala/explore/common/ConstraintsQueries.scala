@@ -17,6 +17,7 @@ import explore.undo.UndoableView
 import lucuma.core.enum._
 import lucuma.core.model.Observation
 import monocle.Lens
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 object ConstraintsQueries {
   case class UndoView(

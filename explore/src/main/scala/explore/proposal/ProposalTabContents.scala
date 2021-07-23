@@ -25,6 +25,7 @@ import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
 import lucuma.core.model._
 import react.common.ReactProps
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import java.net.URI
 

@@ -5,16 +5,16 @@ import cats.effect.IO
 import crystal.ViewF
 import crystal.ViewOptF
 import explore.model.AppContext
+import explore.undo.UndoContext
+import japgolly.scalajs.react.callback.CallbackTo
 
 package explore {
 
-  import cats.effect.SyncIO
-  import explore.undo.UndoContext
   trait ShorthandTypes {
     type AppContextIO = AppContext[IO]
-    type View[A]      = ViewF[SyncIO, A]
-    type ViewOpt[A]   = ViewOptF[SyncIO, A]
-    type UndoCtx[A]   = UndoContext[SyncIO, IO, A]
+    type View[A]      = ViewF[CallbackTo, A]
+    type ViewOpt[A]   = ViewOptF[CallbackTo, A]
+    type UndoCtx[A]   = UndoContext[CallbackTo, IO, A]
   }
 
 }

@@ -20,6 +20,8 @@ import react.common._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import japgolly.scalajs.react.util.Effect
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 final case class SubscriptionRenderMod[D, A](
   subscribe:      Reuse[IO[GraphQLSubscription[IO, D]]],
@@ -49,7 +51,7 @@ object SubscriptionRenderMod {
     Reusability.by(p => (p.subscribe, p.streamModifier, p.render, p.onNewData))
   implicit protected def stateReuse[F[_], D, A]: Reusability[State[F, D, A]] = Reusability.never
 
-  protected def componentBuilder[F[_], D, A] =
+  protected def componentBuilder[F[_]: Effect.Dispatch, D, A] =
     ScalaComponent
       .builder[Props[F, D, A]]
       .initialState[Option[State[F, D, A]]](none)
@@ -76,7 +78,6 @@ object SubscriptionRenderMod {
             )
           }
           .handleErrorWith(t => logger.error(t)("Error initializing SubscriptionRenderMod"))
-          .runAsyncCB
       }
       .componentWillUnmount(Render.Subscription.willUnmountFn[F, View, D, A](_))
       .configure(Reusability.shouldComponentUpdate)

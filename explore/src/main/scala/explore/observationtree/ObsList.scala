@@ -4,7 +4,6 @@
 package explore.observationtree
 
 import cats.effect.IO
-import cats.effect.SyncIO
 import cats.syntax.all._
 import clue.TransactionalClient
 import crystal.react.implicits._
@@ -38,6 +37,7 @@ import react.common.implicits._
 import react.semanticui.elements.button.Button
 import react.semanticui.shorthand._
 import react.semanticui.sizes._
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import java.time.Duration
 import scala.util.Random
@@ -68,9 +68,9 @@ object ObsList {
       undoCtx: UndoCtx[ObservationList]
     )(implicit
       c:       TransactionalClient[IO, ObservationDB]
-    ): SyncIO[Unit] = {
+    ): Callback = {
       // Temporary measure until we have id pools.
-      val newObs = SyncIO(Random.nextInt(0xfff)).map(int =>
+      val newObs = CallbackTo(Random.nextInt(0xfff)).map(int =>
         ObsSummaryWithPointingAndConstraints(
           Observation.Id(PosLong.unsafeFrom(int.abs.toLong + 1)),
           pointing = none,

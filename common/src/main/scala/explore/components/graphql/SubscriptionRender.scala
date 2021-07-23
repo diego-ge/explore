@@ -17,6 +17,7 @@ import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
 import org.typelevel.log4cats.Logger
 import react.common._
+import japgolly.scalajs.react.util.Effect
 
 final case class SubscriptionRender[D, A](
   subscribe:      Reuse[IO[GraphQLSubscription[IO, D]]],
@@ -46,16 +47,15 @@ object SubscriptionRender {
     Reusability.by(p => (p.subscribe, p.streamModifier, p.render, p.onNewData))
   implicit def stateReuse[F[_], D, A]: Reusability[State[F, D, A]] = Reusability.never
 
-  protected def componentBuilder[F[_], D, A] =
+  protected def componentBuilder[F[_]: Effect.Dispatch, D, A] =
     ScalaComponent
       .builder[Props[F, D, A]]
       .initialState[Option[State[F, D, A]]](none)
       .render(Render.renderFn[F, Id, D, A](_))
       .componentDidMount { $ =>
-        implicit val F          = $.props.F
-        implicit val dispatcher = $.props.dispatcher
-        implicit val logger     = $.props.logger
-        implicit val reuse      = $.props.reuse
+        implicit val F      = $.props.F
+        implicit val logger = $.props.logger
+        implicit val reuse  = $.props.reuse
 
         $.props.subscribe.value
           .flatMap { subscription =>
@@ -72,7 +72,6 @@ object SubscriptionRender {
             )
           }
           .handleErrorWith(t => logger.error(t)("Error initializing SubscriptionRender"))
-          .runAsyncCB
       }
       .componentWillUnmount(Render.Subscription.willUnmountFn[F, Id, D, A](_))
       .configure(Reusability.shouldComponentUpdate)

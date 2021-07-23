@@ -4,7 +4,6 @@
 package explore.components.state
 
 import cats.effect.IO
-import cats.effect.SyncIO
 import cats.syntax.all._
 import crystal.react.implicits._
 import crystal.react.reuse._
@@ -20,8 +19,8 @@ import monocle.Focus
 import react.common.ReactProps
 
 final case class LogoutTracker(
-  setVault:   Option[UserVault] ==> SyncIO[Unit],
-  setMessage: NonEmptyString ==> SyncIO[Unit]
+  setVault:   Option[UserVault] ==> Callback,
+  setMessage: NonEmptyString ==> Callback
 )(val render: IO[Unit] ==> VdomNode)(implicit val ctx: AppContextIO)
     extends ReactProps[LogoutTracker](LogoutTracker.component)
 
@@ -50,22 +49,20 @@ object LogoutTracker {
         )
       }
       .componentDidMount { $ =>
-        SyncIO {
+        IO {
           val bc = new BroadcastChannel[ExploreEvent]("explore")
           bc.onmessage = (x: ExploreEvent) =>
             // This is coming from the js world, we can't match the type
             (x.event match {
               case ExploreEvent.Logout.event =>
-                $.props.setVault(none) >> $.props.setMessage("You logged out in another instance")
-              case _                         => SyncIO.unit
+                ($.props.setVault(none) >> $.props.setMessage("You logged out in another instance"))
+                  .to[IO]
+              case _                         => IO.unit
             })
           bc
-        }.flatMap(bc => $.modStateIn[SyncIO](State.bc.replace(bc.some)))
+        }.flatMap(bc => $.modStateAsync(State.bc.replace(bc.some)))
       }
-      .componentWillUnmount { $ =>
-        implicit val ctx = $.props.ctx
-        $.state.bc.map(bc => IO(bc.close()).attempt.void).orEmpty.runAsyncAndForgetCB
-      }
+      .componentWillUnmount(_.state.bc.map(bc => IO(bc.close()).attempt.void).orEmpty)
       .configure(Reusability.shouldComponentUpdate)
       .build
 
