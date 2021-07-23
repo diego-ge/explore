@@ -73,7 +73,7 @@ object SearchForm {
   class Backend($ : BackendScope[Props, State]) {
 
     def render(props: Props, state: State) = {
-      val searchComplete: Callback = props.searching.mod(_ - props.id).toCB
+      val searchComplete: Callback = props.searching.mod(_ - props.id)
 
       val search: Callback =
         props

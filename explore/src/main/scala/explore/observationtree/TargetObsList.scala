@@ -289,6 +289,7 @@ object TargetObsList {
       logger:     Logger[IO]
     ): Callback =
       ($.props, CallbackTo(PosLong.unsafeFrom(Random.nextInt(0xfff).abs.toLong + 1))).tupled
+        .to[IO]
         .flatMap { case (props, posLong) =>
           val newTarget =
             TargetResult(Target.Id(posLong),
@@ -313,6 +314,7 @@ object TargetObsList {
               IO.unit
           }
         }
+        .runAsyncCB
 
     protected def deleteTarget(
       targetId: Target.Id,

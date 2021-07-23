@@ -3,7 +3,6 @@
 
 package explore.targeteditor
 
-import cats.effect.SyncIO
 import cats.syntax.all._
 import crystal.react.implicits._
 import crystal.react.reuse._
@@ -62,44 +61,41 @@ object AladinContainer {
 
   class Backend($ : BackendScope[Props, State]) {
 
-    val xxx: japgolly.scalajs.react.util.DefaultEffects.Sync[Int]
-    val yyy: japgolly.scalajs.react.util.DefaultEffects.Async[Int]
-    val zzz = AladinComp
-
     // Create a mutable reference
-    private val aladinRef = Ref.toScalaComponent(AladinComp)
+    // private val aladinRef = Ref.toScalaComponent(AladinComp)
 
     def setRa(ra: RightAscension): Callback =
-      $.propsIn[SyncIO].flatMap(_.target.zoom(Coordinates.rightAscension).set(ra))
+      $.props.flatMap(_.target.zoom(Coordinates.rightAscension).set(ra))
 
     def setDec(dec: Declination): Callback =
-      $.propsIn[SyncIO].flatMap(_.target.zoom(Coordinates.declination).set(dec))
+      $.props.flatMap(_.target.zoom(Coordinates.declination).set(dec))
 
-    val gotoRaDec = (coords: Coordinates) =>
-      aladinRef.get.asCBO
-        .flatMapCB(
-          _.backend
-            .gotoRaDec(coords.ra.toAngle.toDoubleDegrees, coords.dec.toAngle.toDoubleDegrees)
-        )
-        .toCallback
+    val gotoRaDec = (coords: Coordinates) => Callback.empty
+    // aladinRef.get.asCBO
+    //   .flatMapCB(
+    //     _.backend
+    //       .gotoRaDec(coords.ra.toAngle.toDoubleDegrees, coords.dec.toAngle.toDoubleDegrees)
+    //   )
+    //   .toCallback
 
     def searchAndGo(
       modify: ((String, RightAscension, Declination)) => Callback
     )(search: String) =
-      aladinRef.get.asCBO
-        .flatMapCB(
-          _.backend
-            .gotoObject(
-              search,
-              (a, b) => {
-                val ra  = RightAscension.fromDoubleDegrees(a.toDouble)
-                val dec = Declination.fromDoubleDegrees(b.toDouble).getOrElse(Declination.Zero)
-                setRa(ra) *> setDec(dec) *> modify((search, ra, dec))
-              },
-              Callback.log("error")
-            )
-        )
-        .toCallback
+      Callback.empty
+    // aladinRef.get.asCBO
+    //   .flatMapCB(
+    //     _.backend
+    //       .gotoObject(
+    //         search,
+    //         (a, b) => {
+    //           val ra  = RightAscension.fromDoubleDegrees(a.toDouble)
+    //           val dec = Declination.fromDoubleDegrees(b.toDouble).getOrElse(Declination.Zero)
+    //           setRa(ra) *> setDec(dec) *> modify((search, ra, dec))
+    //         },
+    //         Callback.log("error")
+    //       )
+    //   )
+    //   .toCallback
 
     def toggleVisibility(g: Element, selector: String, option: Visible): Unit =
       g.querySelectorAll(selector).foreach {
@@ -117,9 +113,10 @@ object AladinContainer {
      * @return
      */
     def initialSvgState: Callback =
-      aladinRef.get.asCBO
-        .flatMapCB(_.backend.runOnAladinCB(updateSvgState))
-        .void
+      Callback.empty
+    // aladinRef.get.asCBO
+    //   .flatMapCB(_.backend.runOnAladinCB(updateSvgState))
+    //   .void
 
     /**
      * Recalculate svg and store it on state
@@ -147,35 +144,36 @@ object AladinContainer {
       size:       => Size,
       pixelScale: => PixelScale
     ): Callback =
-      $.props
-        .map(_.aladinCoords)
-        .toCBO
-        // calculate the offset
-        .flatMap(c => aladinRef.get.asCBO.flatMapCB(_.backend.world2pix(c)))
-        .zip($.props.map(_.options).toCBO)
-        .map {
-          case (Some((x, y)), options: TargetVisualOptions) =>
-            // Delete any viz previously rendered
-            val previous = Option(div.querySelector(".aladin-visualization"))
-            previous.foreach(div.removeChild)
-            val g        = document.createElement("div")
-            g.classList.add("aladin-visualization")
-            visualization.geometryForAladin(svgBase,
-                                            g,
-                                            size,
-                                            pixelScale,
-                                            GmosGeometry.ScaleFactor,
-                                            (x, y)
-            )
-            // Switch the visibility
-            toggleVisibility(g, "#science-ccd polygon", options.fov)
-            toggleVisibility(g, "#science-ccd-offset polygon", options.offsets)
-            toggleVisibility(g, "#patrol-field", options.guiding)
-            toggleVisibility(g, "#probe", options.probe)
-            div.appendChild(g)
-            ()
-          case _                                            =>
-        }
+      Callback.empty
+    // $.props
+    //   .map(_.aladinCoords)
+    //   .toCBO
+    //   // calculate the offset
+    //   .flatMap(c => aladinRef.get.asCBO.flatMapCB(_.backend.world2pix(c)))
+    //   .zip($.props.map(_.options).toCBO)
+    //   .map {
+    //     case (Some((x, y)), options: TargetVisualOptions) =>
+    //       // Delete any viz previously rendered
+    //       val previous = Option(div.querySelector(".aladin-visualization"))
+    //       previous.foreach(div.removeChild)
+    //       val g        = document.createElement("div")
+    //       g.classList.add("aladin-visualization")
+    //       visualization.geometryForAladin(svgBase,
+    //                                       g,
+    //                                       size,
+    //                                       pixelScale,
+    //                                       GmosGeometry.ScaleFactor,
+    //                                       (x, y)
+    //       )
+    //       // Switch the visibility
+    //       toggleVisibility(g, "#science-ccd polygon", options.fov)
+    //       toggleVisibility(g, "#science-ccd-offset polygon", options.offsets)
+    //       toggleVisibility(g, "#patrol-field", options.guiding)
+    //       toggleVisibility(g, "#probe", options.probe)
+    //       div.appendChild(g)
+    //       ()
+    //     case _                                            =>
+    //   }
 
     def includeSvg(v: JsAladin): Callback =
       v.onFullScreenToggle(recalculateView) *> // re render on screen toggle
@@ -200,10 +198,11 @@ object AladinContainer {
 
     def onZoom(v: JsAladin): Callback =
       updateSvgState(v).flatMap { s =>
-        aladinRef.get.asCBO.flatMapCB(r =>
-          r.backend.recalculateView *>
-            r.backend.runOnAladinCB(updateVisualization(s))
-        )
+        CallbackTo(none)
+      // aladinRef.get.asCBO.flatMapCB(r =>
+      //   r.backend.recalculateView *>
+      //     r.backend.runOnAladinCB(updateVisualization(s))
+      // )
       }
 
     /**
@@ -220,43 +219,46 @@ object AladinContainer {
           // Update the existing visualization in place
           val previous = Option(div.querySelector(".aladin-visualization"))
           (s.svg, previous).mapN { case (svg, previous) =>
-            aladinRef.get.asCBO
-              .flatMapCB(
-                _.backend.world2pix(Coordinates(p.aladinCoords.ra, p.aladinCoords.dec))
-              )
-              .flatMapCB {
-                case Some(off) =>
-                  Callback {
-                    // Offset the visualization
-                    visualization
-                      .updatePosition(svg,
-                                      previous,
-                                      size,
-                                      v.pixelScale,
-                                      GmosGeometry.ScaleFactor,
-                                      off
-                      )
-                  }
-                case _         => Callback.empty
-              }
-              .toCallback
+            Callback.empty
+          // aladinRef.get.asCBO
+          //   .flatMapCB(
+          //     _.backend.world2pix(Coordinates(p.aladinCoords.ra, p.aladinCoords.dec))
+          //   )
+          //   .flatMapCB {
+          //     case Some(off) =>
+          //       Callback {
+          //         // Offset the visualization
+          //         visualization
+          //           .updatePosition(svg,
+          //                           previous,
+          //                           size,
+          //                           v.pixelScale,
+          //                           GmosGeometry.ScaleFactor,
+          //                           off
+          //           )
+          //       }
+          //     case _         => Callback.empty
+          //   }
+          //   .toCallback
           }.getOrEmpty
         }
         .void
 
     def centerOnTarget: Callback =
-      $.props.flatMap(p =>
-        aladinRef.get.asCBO.flatMapCB(
-          _.backend.gotoRaDec(p.aladinCoords.ra.toAngle.toDoubleDegrees,
-                              p.aladinCoords.dec.toAngle.toSignedDoubleDegrees
-          )
-        )
+      $.props.flatMap(p => CallbackTo(none)
+      // aladinRef.get.asCBO.flatMapCB(
+      //   _.backend.gotoRaDec(p.aladinCoords.ra.toAngle.toDoubleDegrees,
+      //                       p.aladinCoords.dec.toAngle.toSignedDoubleDegrees
+      //   )
+      // )
       )
 
     def render(props: Props) =
       <.div(
         ExploreStyles.AladinContainerBody,
-        AladinComp.withRef(aladinRef) {
+        AladinComp
+        // .withRef(aladinRef)
+        {
           Aladin(
             showReticle = false,
             showLayersControl = false,
@@ -269,13 +271,15 @@ object AladinContainer {
       )
 
     def recalculateView =
-      aladinRef.get.asCBO.flatMapCB { r =>
-        r.backend.runOnAladinCB { v =>
-          updateSvgState(v).flatMap(s =>
-            r.backend.recalculateView *> r.backend.runOnAladinCB(updateVisualization(s))
-          )
-        }
-      }
+      CallbackOption(CallbackTo(none))
+
+    // aladinRef.get.asCBO.flatMapCB { r =>
+    //   r.backend.runOnAladinCB { v =>
+    //     updateSvgState(v).flatMap(s =>
+    //       r.backend.recalculateView *> r.backend.runOnAladinCB(updateVisualization(s))
+    //     )
+    //   }
+    // }
   }
 
   val component =

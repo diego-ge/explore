@@ -29,7 +29,7 @@ object Settings {
     val mouse             = "1.0.4"
     val mUnit             = "0.7.27"
     val mUnitCatsEffect   = "1.0.5"
-    val reactAladin       = "0.6.0+0-194494a5+20210723-0956-SNAPSHOT" // Maybe this is not necessary??
+    val reactAladin       = "0.6.0+0-194494a5+20210723-1850-SNAPSHOT" // Maybe this is not necessary??
     val reactAtlasKitTree = "0.4.1"
     val reactClipboard    = "1.5.0"
     val reactCommon       = "0.13.0"

@@ -34,6 +34,7 @@ import react.semanticui.sizes._
 import reactST.reactTable.SUITable
 import reactST.reactTable.TableMaker
 import reactST.reactTable.mod.SortingRule
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import scala.collection.immutable.HashSet
 
@@ -71,7 +72,9 @@ object MagnitudeForm {
           ViewF(
             band,
             (mod, cb) =>
-              $.modStateInSyncIO(State.newBand.some.modify(mod), _.newBand.map(cb).orEmpty)
+              $.modState(State.newBand.some.modify(mod),
+                         $.state.flatMap(_.newBand.map(cb).getOrEmpty)
+              )
           )
         )
 

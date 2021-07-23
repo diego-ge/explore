@@ -35,6 +35,7 @@ import react.resizeDetector.ResizeDetector
 import react.semanticui.elements.button.Button
 import react.semanticui.elements.button.Button.ButtonProps
 import react.semanticui.sizes._
+import japgolly.scalajs.react.callback.CallbackCatsEffect._
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration._
