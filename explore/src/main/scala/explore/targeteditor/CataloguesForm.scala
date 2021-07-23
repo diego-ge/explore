@@ -4,7 +4,6 @@
 package explore.targeteditor
 
 import cats.data.NonEmptyList
-import cats.syntax.all._
 import crystal.react.implicits._
 import explore.View
 import explore.components.ui.ExploreStyles
