@@ -122,6 +122,7 @@ module.exports = ({ command, mode }) => {
       },
     },
     build: {
+      sourcemap: true,
       emptyOutDir: true,
       chunkSizeWarningLimit: 20000,
       terserOptions: {
