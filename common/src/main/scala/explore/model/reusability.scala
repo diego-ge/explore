@@ -14,9 +14,7 @@ import japgolly.scalajs.react.ReactCats._
 import japgolly.scalajs.react.Reusability
 import lucuma.core.model.AngularSize
 import lucuma.core.model.EphemerisKey
-import lucuma.core.model.NonsiderealTarget
 import lucuma.core.model.Semester
-import lucuma.core.model.SiderealTarget
 import lucuma.core.model.Target
 import lucuma.ui.reusability._
 
@@ -46,8 +44,8 @@ object reusability {
   implicit def idListReuse[Id, A: Reusability]: Reusability[KeyedIndexedList[Id, A]]  =
     Reusability.by(_.toList)
   implicit val ephemerisKeyReuse: Reusability[EphemerisKey]                           = Reusability.derive
-  implicit val siderealTargetReuse: Reusability[SiderealTarget]                       = Reusability.derive
-  implicit val nonsiderealTargetReuse: Reusability[NonsiderealTarget]                 = Reusability.derive
+  implicit val SiderealTargetReuse: Reusability[Target.Sidereal]                      = Reusability.derive
+  implicit val NonsiderealTargetReuse: Reusability[Target.Nonsidereal]                = Reusability.derive
   implicit val scienceTargetsReuse: Reusability[TreeSeqMap[Target.Id, Target]]        =
     Reusability.by((_: TreeSeqMap[Target.Id, Target]).toMap)(Reusability.map)
   implicit val obsIdSetReuse: Reusability[ObsIdSet]                                   = Reusability.derive
