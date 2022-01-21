@@ -1,5 +1,6 @@
 {
   "extends": "stylelint-config-standard",
+  "customSyntax": "less",
   "plugins": [
     "@ronilaukkarinen/stylelint-value-no-unknown-custom-properties",
     "stylelint-color-format"
