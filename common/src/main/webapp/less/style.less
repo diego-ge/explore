@@ -843,26 +843,27 @@ tfoot {
 
 .sky-plot {
   flex-grow: 2;
-  height: auto;
+  height: 100%;
 
   .highcharts-xaxis .highcharts-axis-title {
     fill: hsl(0, 87%, 66%);
   }
 
   > div {
-    height: auto;
+    height: 100%;
 
     div[data-highcharts-chart] {
-      height: auto;
+      height: 100%;
     }
   }
 }
 
 .sky-plot-section {
+  // height: 300px;
   min-width: 1px; // Needed to help highcharts recompute width on the fly.
   width: 100%;
   position: relative;
-  flex-grow: 1;
+  // flex-grow: 1;
   display: flex;
   flex-direction: column;
   background-color: var(--plot-background-color);
