@@ -12,6 +12,7 @@ import gpp.highcharts.mod.XAxisLabelsOptions
 import gpp.highcharts.mod._
 import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.html_<^._
+import japgolly.scalajs.react.vdom.html_<^
 import lucuma.core.enum.Site
 import lucuma.core.enum.TwilightType
 import lucuma.core.math.Angle
@@ -162,7 +163,12 @@ object SkyPlotNight {
     ScalaFnComponent
       .withHooks[Props]
       .useState(HashSet.from(Enumerated[ElevationSeries].all))
-      .useResizeDetector()
+      .useResizeDetector(
+        UseResizeDetectorProps(refreshMode = ResizeDetector.RefreshMode.Debounce,
+                               refreshRate = 1000,
+                               refreshOptions = ResizeDetector.RefreshOptions(trailing = true)
+        )
+      )
       .renderWithReuse { (props, shownSeries, resize) =>
         def showSeriesCB(series: ElevationSeries, chart: Chart_): Callback =
           shownSeries.modState(_ + series) >>
@@ -269,6 +275,7 @@ object SkyPlotNight {
           .setChart(
             ChartOptions()
               .setHeight(resize.height.getOrElse(1).toDouble)
+              .setWidth(resize.width.getOrElse(1).toDouble)
               .setStyledMode(true)
               .setAlignTicks(false)
           )
@@ -392,9 +399,12 @@ object SkyPlotNight {
           skyCalcResults.length / 2
         ).bimap(MoonCalc.approxPhase, _.lunarIlluminatedFraction.toDouble)
 
+        val key = s"$props-${resize.height}-${resize.width}"
+        println(key)
         <.div(
+          html_<^.^.cls := "wrap-plot",
           // Include the size in the key
-          Chart(options).withKey(s"$props-$resize").when(resize.height.isDefined),
+          Chart(options).withKey(key).when(resize.height.isDefined),
           <.div(ExploreStyles.MoonPhase)(
             <.span(
               MoonPhase(phase = moonPhase,

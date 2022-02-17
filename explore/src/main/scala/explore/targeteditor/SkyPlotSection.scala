@@ -21,6 +21,7 @@ import react.datepicker._
 import react.semanticui.collections.form.Form
 import react.semanticui.elements.button.Button
 import react.semanticui.elements.button.ButtonGroup
+import react.resizeDetector.hooks._
 
 import java.time.ZonedDateTime
 
@@ -50,10 +51,16 @@ object SkyPlotSection {
       .useState(ZonedDateTime.now(Site.GS.timezone).toLocalDate.plusDays(1))
       .useState[PlotPeriod](PlotPeriod.Night)
       .useState[TimeDisplay](TimeDisplay.Site)
-      .renderWithReuse { (props, site, date, plotPeriod, timeDisplay) =>
+      .useResizeDetector()
+      .renderWithReuse { (props, site, date, plotPeriod, timeDisplay, resizable) =>
         implicit val ctx = props.ctx
+        println(s"Outer ${resizable.height}")
 
-        <.div(ExploreStyles.SkyPlotSection)(
+        <.div(
+          ExploreStyles.SkyPlotSection
+          ^.height :=? resizable.height.map(h => s"${h}px"),
+          ^.width :=? resizable.width.map(w => s"${w}px")
+        )(
           HelpIcon("target/main/elevation-plot.md", ExploreStyles.HelpIconFloating),
           <.div(ExploreStyles.SkyPlot) {
             plotPeriod.value match {
@@ -117,6 +124,6 @@ object SkyPlotSection {
               )("Site")
             )((^.visibility.hidden.when(plotPeriod.value === PlotPeriod.Semester)))
           )
-        )
+        ).withRef(resizable.ref)
       }
 }
