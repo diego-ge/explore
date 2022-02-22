@@ -1,7 +1,14 @@
 {
   "extends": [
     "stylelint-config-standard",
+    "stylelint-config-standard-scss",
     "stylelint-config-prettier"
+  ],
+  "overrides": [
+    {
+      "files": ["*.less", "**/*.less"],
+      "customSyntax": "postcss-less"
+    }
   ],
   "plugins": [
     "@ronilaukkarinen/stylelint-value-no-unknown-custom-properties",
