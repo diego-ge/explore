@@ -251,6 +251,7 @@ jobs:
           stylelint: true
           stylelint_extensions: css,less
           stylelint_args: common/src/main/webapp/less
+          git_no_verify: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
           stylelint_dir: common/src/main/webapp/less
 
@@ -265,5 +266,6 @@ jobs:
           stylelint: true
           stylelint_extensions: css,less
           stylelint_args: common/src/main/webapp/less
+          git_no_verify: true
           github_token: ${{ secrets.GITHUB_TOKEN }}
           stylelint_dir: common/src/main/webapp/less
